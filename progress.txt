@@ -38,3 +38,27 @@ Started: 2026-01-31 21:56:53.522243
   - Gotcha: mypy and returns need to be installed via `uv pip install` before typecheck
   - Context: US-001, US-002, US-003 were marked complete but code didn't exist; implemented during US-006
 ---
+## 2026-01-31 23:10:00 - US-007
+- Implemented uv-based entry point and pyproject.toml configuration
+- Created comprehensive pyproject.toml with:
+  - Entry point configuration: ralph = "ralph.ralph_cli:main"
+  - Dependencies: returns>=0.23.0
+  - Dev dependencies: mypy>=1.8.0, ruff>=0.1.0, pytest>=8.0.0, pytest-cov>=4.1.0
+  - Python version requirement: >=3.11
+  - Ruff configuration with comprehensive linting rules
+  - Mypy strict mode configuration
+  - Pytest configuration with coverage reporting
+- Fixed ruff linting issues in executors.py (ternary operator)
+- Fixed import formatting in archiver.py
+- Verified `uv run ralph --help` works correctly
+- Added Python-specific entries to .gitignore (__pycache__, .venv, etc.)
+- Files changed: pyproject.toml (new), uv.lock (new), .gitignore, ralph/executors.py, ralph/archiver.py, ralph/file_manager.py, ralph/runner.py
+- **Learnings for future iterations:**
+  - Pattern: pyproject.toml uses [project.scripts] for CLI entry points
+  - Pattern: Use [tool.uv] section for dev-dependencies (uv-specific)
+  - Pattern: Ruff configuration uses select/ignore lists for granular control
+  - Pattern: Mypy strict mode requires [[tool.mypy.overrides]] for third-party libraries without stubs (returns)
+  - Implementation: uv.lock is auto-generated and should be committed for reproducible builds
+  - Context: CLI now fully functional with `uv run ralph --tool {amp,claude,codex} [max_iterations]`
+  - Gotcha: Virtual environment warnings from uv can be ignored in most cases
+---
