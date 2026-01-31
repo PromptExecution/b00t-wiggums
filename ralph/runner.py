@@ -1,65 +1,98 @@
+"""Iteration runner for Ralph automation."""
+
 from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import TypeVar
 
-from returns.result import Failure
+from returns.result import Failure, Result
 
-from ralph.config import RalphConfig
-from ralph.executors import create_executor
+from ralph.config import RalphConfig, load_config
+from ralph.executors import AmpExecutor, ClaudeExecutor, CodexExecutor, ToolExecutor
+from ralph.logging_utils import (
+    configure_logging,
+    log_error,
+    log_info,
+    log_success,
+    log_warning,
+)
+
+PACKAGE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = PACKAGE_DIR.parent
+PROMPT_FILE = PROJECT_ROOT / "prompt.md"
+CLAUDE_PROMPT_FILE = PROJECT_ROOT / "CLAUDE.md"
+COMPLETE_MARKER = "<promise>COMPLETE</promise>"
+ResultValue = TypeVar("ResultValue")
 
 
-def _project_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+def _unwrap_result(result: Result[ResultValue, Exception], message: str) -> ResultValue:
+    """Unwrap a Result or raise a chained error."""
+
+    if isinstance(result, Failure):
+        error = result.failure()
+        raise RuntimeError(message) from error
+    return result.unwrap()
 
 
-def run_ralph(config: RalphConfig, max_iterations: int) -> int:
-    """
-    Run Ralph autonomous agent loop.
+def _build_executor(tool: str, config: RalphConfig) -> ToolExecutor:
+    """Create the executor for the selected tool."""
 
-    Args:
-        config: Ralph configuration
-        max_iterations: Maximum number of iterations to run
+    match tool:
+        case "amp":
+            return AmpExecutor(prompt_path=PROMPT_FILE, working_dir=PROJECT_ROOT)
+        case "claude":
+            return ClaudeExecutor(prompt_path=CLAUDE_PROMPT_FILE, working_dir=PROJECT_ROOT)
+        case "codex":
+            return CodexExecutor(config=config, working_dir=PROJECT_ROOT)
+    raise ValueError(f"Unsupported tool requested: {tool}")
 
-    Returns:
-        0 on completion (when <promise>COMPLETE</promise> is detected)
-        1 if max iterations reached without completion
-    """
-    print(f"Starting Ralph - Tool: {config.tool} - Max iterations: {max_iterations}")
 
-    executor = create_executor(config)
+def run_ralph(tool: str, max_iterations: int) -> int:
+    """Run the Ralph tool loop for a maximum number of iterations."""
 
-    for i in range(1, max_iterations + 1):
-        print("")
-        print("===============================================================")
-        print(f"  Ralph Iteration {i} of {max_iterations} ({config.tool})")
-        print("===============================================================")
+    logger = configure_logging()
 
-        result = executor.execute()
+    try:
+        config = _unwrap_result(load_config(), "Failed to load configuration")
+    except RuntimeError as exc:
+        log_error(logger, "Configuration error", exc)
+        return 1
 
-        if isinstance(result, Failure):
-            print(f"❌ Error executing {config.tool}: {result.failure()}")
-            print(f"Iteration {i} failed. Continuing...")
-            time.sleep(2)
-            continue
+    log_info(
+        logger,
+        f"Configuration loaded: tool={tool} iterations={max_iterations} model={config.model}",
+    )
 
-        output = result.unwrap()
+    executor = _build_executor(tool, config)
 
-        # Check for completion signal
-        if "<promise>COMPLETE</promise>" in output:
-            print("")
-            print("Ralph completed all tasks!")
-            print(f"Completed at iteration {i} of {max_iterations}")
+    for iteration in range(1, max_iterations + 1):
+        log_info(logger, "")
+        log_info(logger, "=" * 63)
+        log_info(logger, f"Ralph Iteration {iteration} of {max_iterations} ({tool})")
+        log_info(logger, "=" * 63)
+
+        try:
+            output = _unwrap_result(executor.run(), "Tool execution failed")
+        except RuntimeError as exc:
+            log_error(logger, "Tool execution failed", exc)
+            return 1
+
+        if COMPLETE_MARKER in output:
+            log_info(logger, "")
+            log_success(logger, "Ralph completed all tasks!")
+            log_success(logger, f"Completed at iteration {iteration} of {max_iterations}")
             return 0
 
-        print(f"Iteration {i} complete. Continuing...")
+        log_info(logger, f"Iteration {iteration} complete. Continuing...")
         time.sleep(2)
 
-    print("")
-    print(
-        f"Ralph reached max iterations ({max_iterations}) without completing all tasks."
+    log_info(logger, "")
+    log_warning(
+        logger,
+        f"Ralph reached max iterations ({max_iterations}) without completing all tasks.",
     )
-    root = _project_root()
-    progress_file = root / "progress.txt"
-    print(f"Check {progress_file} for status.")
     return 1
+
+
+__all__ = ["run_ralph"]

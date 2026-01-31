@@ -1,145 +1,147 @@
+"""Branch change detection and archival utilities."""
+
 from __future__ import annotations
 
-import shutil
-from datetime import datetime
+from datetime import date
 from pathlib import Path
 
+from returns.maybe import Maybe as Option, Nothing, Some
 from returns.result import Failure, Result, Success
 
+from ralph.file_manager import PRD_PATH, PROGRESS_PATH, get_current_branch
 
-def _project_root() -> Path:
-    return Path(__file__).resolve().parent.parent
-
-
-def _last_branch_path() -> Path:
-    return _project_root() / ".last-branch"
+PACKAGE_DIR = PRD_PATH.parent
+ARCHIVE_DIR = PACKAGE_DIR / "archive"
+LAST_BRANCH_PATH = PACKAGE_DIR / ".last-branch"
 
 
-def _default_prd_path() -> Path:
-    return _project_root() / "prd.json"
+def _sanitize_branch_name(branch: str) -> str:
+    """Normalize branch names for archive folder usage."""
+
+    cleaned = branch.strip().removeprefix("ralph/")
+    cleaned = cleaned.replace("/", "-").replace(" ", "-")
+    return cleaned or "unknown-branch"
 
 
-def _default_progress_path() -> Path:
-    return _project_root() / "progress.txt"
+def _read_last_branch() -> Option[str]:
+    """Load the last recorded branch name."""
 
-
-def _archive_dir() -> Path:
-    return _project_root() / "archive"
-
-
-def _get_last_branch() -> str | None:
-    """Read the last branch from .last-branch file."""
-    last_branch_file = _last_branch_path()
-    if not last_branch_file.exists():
-        return None
+    if not LAST_BRANCH_PATH.exists():
+        return Nothing
     try:
-        return last_branch_file.read_text().strip()
-    except Exception:
-        return None
+        content = LAST_BRANCH_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return Nothing
+    if not content:
+        return Nothing
+    return Some(content)
 
 
-def _get_current_git_branch() -> str | None:
-    """Get the current git branch name."""
+def _write_last_branch(branch: str) -> Result[Path, Exception]:
+    """Persist the current branch name to disk."""
+
     try:
-        import subprocess
+        LAST_BRANCH_PATH.write_text(branch.strip(), encoding="utf-8")
+    except OSError as exc:
+        return Failure(exc)
+    return Success(LAST_BRANCH_PATH)
 
-        result = subprocess.run(
-            ["git", "branch", "--show-current"],
-            capture_output=True,
-            text=True,
-            check=True,
-            cwd=_project_root(),
-        )
-        return result.stdout.strip() or None
-    except Exception:
-        return None
+
+def _reset_progress_file() -> Result[Path, Exception]:
+    """Clear progress.txt when a new branch starts."""
+
+    try:
+        PROGRESS_PATH.write_text("", encoding="utf-8")
+    except OSError as exc:
+        return Failure(exc)
+    return Success(PROGRESS_PATH)
+
+
+def _copy_if_exists(source: Path, destination: Path) -> Result[None, Exception]:
+    """Copy file contents when the source exists."""
+
+    if not source.exists():
+        return Success(None)
+    try:
+        destination.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    except OSError as exc:
+        return Failure(exc)
+    return Success(None)
+
+
+def archive_previous_run(last_branch: str, current_branch: str) -> Result[Path, Exception]:
+    """Archive prd.json and progress.txt for the previous branch."""
+
+    if not last_branch.strip() or last_branch.strip() == current_branch.strip():
+        return Success(ARCHIVE_DIR)
+
+    date_str = date.today().isoformat()
+    branch_label = _sanitize_branch_name(last_branch)
+    archive_folder = ARCHIVE_DIR / f"{date_str}-{branch_label}"
+
+    try:
+        archive_folder.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        return Failure(exc)
+
+    copy_prd_result = _copy_if_exists(PRD_PATH, archive_folder / PRD_PATH.name)
+    match copy_prd_result:
+        case Success(_):
+            pass
+        case Failure(error):
+            return Failure(error)
+
+    copy_progress_result = _copy_if_exists(PROGRESS_PATH, archive_folder / PROGRESS_PATH.name)
+    match copy_progress_result:
+        case Success(_):
+            pass
+        case Failure(error):
+            return Failure(error)
+
+    return Success(archive_folder)
 
 
 def check_branch_change() -> bool:
-    """
-    Check if the git branch has changed since the last run.
+    """Check for branch changes and archive previous runs."""
 
-    Returns True if the branch has changed, False otherwise.
-    """
-    last_branch = _get_last_branch()
-    current_branch = _get_current_git_branch()
+    current_branch_result = get_current_branch()
+    match current_branch_result:
+        case Some(current_branch):
+            pass
+        case _:
+            return False
 
-    if last_branch is None:
-        # First run, no previous branch
+    last_branch_result = _read_last_branch()
+    match last_branch_result:
+        case Some(last_branch):
+            pass
+        case _:
+            write_result = _write_last_branch(current_branch)
+            if isinstance(write_result, Failure):
+                return False
+            return False
+
+    if last_branch == current_branch:
         return False
 
-    if current_branch is None:
-        # Can't determine current branch
+    archive_result = archive_previous_run(last_branch, current_branch)
+    if isinstance(archive_result, Failure):
         return False
 
-    return last_branch != current_branch
+    write_result = _write_last_branch(current_branch)
+    if isinstance(write_result, Failure):
+        return False
+
+    reset_result = _reset_progress_file()
+    if isinstance(reset_result, Failure):
+        return False
+
+    return True
 
 
-def archive_previous_run(
-    last_branch: str,
-    current_branch: str,
-    prd_path: Path | None = None,
-    progress_path: Path | None = None,
-) -> Result[None, Exception]:
-    """
-    Archive the previous run's prd.json and progress.txt.
-
-    Archives to: archive/{date}-{branch-name}/
-    """
-    prd_source = prd_path or _default_prd_path()
-    progress_source = progress_path or _default_progress_path()
-
-    try:
-        # Create archive directory if it doesn't exist
-        archive_root = _archive_dir()
-        archive_root.mkdir(exist_ok=True)
-
-        # Create timestamped directory: YYYY-MM-DD-{branch-name}
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        # Sanitize branch name for filesystem (replace / with -)
-        safe_branch = last_branch.replace("/", "-")
-        archive_name = f"{date_str}-{safe_branch}"
-        archive_path = archive_root / archive_name
-
-        # If directory exists, add a counter
-        counter = 1
-        original_archive_path = archive_path
-        while archive_path.exists():
-            archive_path = Path(f"{original_archive_path}-{counter}")
-            counter += 1
-
-        archive_path.mkdir(parents=True)
-
-        # Copy files if they exist
-        if prd_source.exists():
-            shutil.copy2(prd_source, archive_path / "prd.json")
-
-        if progress_source.exists():
-            shutil.copy2(progress_source, archive_path / "progress.txt")
-
-        return Success(None)
-    except Exception as exc:
-        return Failure(exc)
-
-
-def update_last_branch(branch_name: str) -> Result[None, Exception]:
-    """Update the .last-branch file with the current branch name."""
-    try:
-        _last_branch_path().write_text(f"{branch_name}\n")
-        return Success(None)
-    except Exception as exc:
-        return Failure(exc)
-
-
-def reset_progress_file(progress_path: Path | None = None) -> Result[None, Exception]:
-    """Reset progress.txt with a new header on branch change."""
-    target = progress_path or _default_progress_path()
-    try:
-        target.write_text(
-            "# Ralph Progress Log\n"
-            f"Started: {datetime.now()}\n"
-            "---\n"
-        )
-        return Success(None)
-    except Exception as exc:
-        return Failure(exc)
+__all__ = [
+    "ARCHIVE_DIR",
+    "LAST_BRANCH_PATH",
+    "archive_previous_run",
+    "check_branch_change",
+]
