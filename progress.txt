@@ -109,3 +109,25 @@ Started: 2026-01-31 21:56:53.522243
   - Context: 92% coverage means most code paths are tested
   - Context: Test suite validates all core functionality before moving to integration tests
 ---
+## 2026-02-01 09:00:00 - US-010
+- Implemented integration test suite with end-to-end Ralph CLI verification
+- Created tests/test_ralph_integration.py with 10 integration tests
+- Created tool stubs in tests/tool_stubs/ for amp, claude, and codex
+- Fixed critical bug in _TeeToStderr: subprocess output wasn't being captured
+- Issue: subprocess.run() with text=True and fileno() writes to pipe FD, not .write() method
+- Solution: Read from pipe's read end after subprocess completes to populate output buffer
+- Modified ralph/executors.py:121-152 to read remaining pipe data after subprocess execution
+- Modified tests/test_ralph_integration.py to use existing tool stubs instead of creating new ones
+- All 10 integration tests passing (7 active, 3 skipped for real tools)
+- All 67 total tests passing (unit + integration)
+- Files changed: ralph/executors.py, tests/test_ralph_integration.py, tests/tool_stubs/{amp,claude,codex}, prd.json
+- **Learnings for future iterations:**
+  - Pattern: _TeeToStderr uses os.pipe() to provide fileno() for subprocess compatibility
+  - Gotcha: subprocess.run() with fileno() writes to FD directly, bypassing .write() method
+  - Pattern: Must read from pipe's read end after subprocess completes to capture output
+  - Pattern: Integration tests use PATH modification to inject stub tools
+  - Implementation: Tool stubs in tests/tool_stubs/ provide <promise>COMPLETE</promise> for testing
+  - Implementation: Tests skip real tool execution unless RALPH_RUN_REAL_TOOL_TESTS=1
+  - Context: Integration tests verify end-to-end CLI behavior including iteration loops
+  - Context: Fix ensures completion marker detection works correctly in production
+---
