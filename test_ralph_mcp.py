@@ -21,9 +21,8 @@ async def test_ralph_mcp():
         print(f"❌ Failed to start Ralph MCP server process: {e}")
         sys.exit(1)
     
-    # Wait for server to start with timeout
+    # Wait for server to start
     print("⏳ Waiting for Ralph MCP server to start...")
-    startup_timeout = 10
     time.sleep(3)
     
     # Check if process is still running
