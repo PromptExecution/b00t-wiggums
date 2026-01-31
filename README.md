@@ -2,7 +2,9 @@
 
 ![Ralph](ralph.webp)
 
-Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com) or [Claude Code](https://docs.anthropic.com/en/docs/claude-code)) repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), or [Codex](https://codex.anthropic.com)) repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+
+**Python Rewrite**: Ralph has been rewritten in Python for improved maintainability, testability, and type safety. See [ralph/README.md](ralph/README.md) for Python-specific documentation.
 
 Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
@@ -10,10 +12,11 @@ Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
 ## Prerequisites
 
+- Python 3.11+ with [uv](https://github.com/astral-sh/uv) package manager installed
 - One of the following AI coding tools installed and authenticated:
   - [Amp CLI](https://ampcode.com) (default)
   - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
-- `jq` installed (`brew install jq` on macOS)
+  - [Codex](https://codex.anthropic.com)
 - A git repository for your project
 
 ## Setup
@@ -109,15 +112,35 @@ This creates `prd.json` with user stories structured for autonomous execution.
 
 ### 3. Run Ralph
 
+**Python Version (Recommended)**:
+
 ```bash
 # Using Amp (default)
-./scripts/ralph/ralph.sh [max_iterations]
+uv run ralph [max_iterations]
 
 # Using Claude Code
-./scripts/ralph/ralph.sh --tool claude [max_iterations]
+uv run ralph --tool claude [max_iterations]
+
+# Using Codex
+uv run ralph --tool codex [max_iterations]
+
+# Or use justfile commands
+just ralph          # Run with amp (default)
+just ralph-claude   # Run with claude
+just ralph-codex    # Run with codex
 ```
 
-Default is 10 iterations. Use `--tool amp` or `--tool claude` to select your AI coding tool.
+**Bash Version (Deprecated)**:
+
+```bash
+# Using Amp (default)
+./ralph.sh [max_iterations]
+
+# Using Claude Code
+./ralph.sh --tool claude [max_iterations]
+```
+
+Default is 10 iterations. Use `--tool amp`, `--tool claude`, or `--tool codex` to select your AI coding tool.
 
 Ralph will:
 1. Create a feature branch (from PRD `branchName`)
@@ -133,12 +156,15 @@ Ralph will:
 
 | File | Purpose |
 |------|---------|
-| `ralph.sh` | The bash loop that spawns fresh AI instances (supports `--tool amp` or `--tool claude`) |
+| `ralph/` | Python implementation of Ralph (recommended) |
+| `ralph/README.md` | Detailed Python documentation |
+| `ralph.sh` | Bash wrapper (delegates to Python version) |
 | `prompt.md` | Prompt template for Amp |
-| `CLAUDE.md` | Prompt template for Claude Code |
+| `CLAUDE.md` | Prompt template for Claude Code and Codex |
 | `prd.json` | User stories with `passes` status (the task list) |
 | `prd.json.example` | Example PRD format for reference |
 | `progress.txt` | Append-only learnings for future iterations |
+| `justfile` | Just commands for Ralph (ralph, ralph-test, ralph-check, etc.) |
 | `skills/prd/` | Skill for generating PRDs (works with Amp and Claude Code) |
 | `skills/ralph/` | Skill for converting PRDs to JSON (works with Amp and Claude Code) |
 | `.claude-plugin/` | Plugin manifest for Claude Code marketplace discovery |
@@ -231,6 +257,52 @@ After copying `prompt.md` (for Amp) or `CLAUDE.md` (for Claude Code) to your pro
 ## Archiving
 
 Ralph automatically archives previous runs when you start a new feature (different `branchName`). Archives are saved to `archive/YYYY-MM-DD-feature-name/`.
+
+## Migration from Bash to Python
+
+The Python version of Ralph maintains the same behavior as the bash version while adding benefits:
+
+### What's the Same
+- Same command-line interface (just `--agent` → `--tool`)
+- Same file structure (`prd.json`, `progress.txt`)
+- Same workflow (iterations, completion signal, archival)
+- Same tool support (amp, claude, codex)
+
+### What's Better
+- **Type Safety**: Full mypy strict mode type checking
+- **Testing**: 92% code coverage with unit and integration tests
+- **Error Handling**: Proper exception handling with returns Result types
+- **Maintainability**: Modular architecture with clear separation of concerns
+- **Development Tools**: justfile commands, ruff linting, comprehensive documentation
+
+### Migration Steps
+
+1. **Install uv** (if not already installed):
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. **Test the Python version**:
+   ```bash
+   uv run ralph --help
+   ```
+
+3. **Update your workflow**:
+   - Replace `./ralph.sh` with `uv run ralph` or `just ralph`
+   - Update CI/CD scripts if needed
+   - Note: `ralph.sh` still works (delegates to Python version)
+
+4. **Customize configuration** (optional):
+   - Set environment variables for codex (see [ralph/README.md](ralph/README.md))
+   - Update `CLAUDE.md` or `prompt.md` for your project
+
+### Breaking Changes
+
+- CLI flag: `--agent` → `--tool`
+- Python 3.11+ required (was: bash)
+- `uv` package manager required (was: none)
+
+See [ralph/README.md](ralph/README.md) for complete Python documentation.
 
 ## References
 
