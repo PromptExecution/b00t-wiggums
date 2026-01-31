@@ -334,11 +334,48 @@ def get_prd_status(prd_path: str | None = None) -> dict[str, any]:
     with open(prd_file) as f:
         prd_data = json.load(f)
     
-    total = len(prd_data["userStories"])
-    completed = sum(1 for story in prd_data["userStories"] if story.get("passes", False))
+    # Validate PRD structure
+    if "userStories" not in prd_data:
+        return {
+            "status": "invalid_structure",
+            "error": "PRD missing required 'userStories' key",
+            "path": str(prd_file),
+        }
+    
+    user_stories = prd_data["userStories"]
+    if not isinstance(user_stories, list):
+        return {
+            "status": "invalid_structure",
+            "error": "'userStories' must be a list",
+            "path": str(prd_file),
+        }
+    
+    # Validate each story has required fields
+    for idx, story in enumerate(user_stories):
+        if not isinstance(story, dict):
+            return {
+                "status": "invalid_structure",
+                "error": f"Story at index {idx} is not a dictionary",
+                "path": str(prd_file),
+            }
+        if "id" not in story:
+            return {
+                "status": "invalid_structure",
+                "error": f"Story at index {idx} missing required 'id' key",
+                "path": str(prd_file),
+            }
+        if "title" not in story:
+            return {
+                "status": "invalid_structure",
+                "error": f"Story at index {idx} missing required 'title' key",
+                "path": str(prd_file),
+            }
+    
+    total = len(user_stories)
+    completed = sum(1 for story in user_stories if story.get("passes", False))
     incomplete = [
         {"id": s["id"], "title": s["title"]}
-        for s in prd_data["userStories"]
+        for s in user_stories
         if not s.get("passes", False)
     ]
     
