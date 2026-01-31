@@ -45,3 +45,4 @@ npm run dev
 - Memory persists via git history, `progress.txt`, and `prd.json`
 - Stories should be small enough to complete in one context window
 - Always update AGENTS.md with discovered patterns for future iterations
+- `mypy` and `ruff` are not yet available via `uv run` until Python tooling is configured (see US-007)
