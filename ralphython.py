@@ -308,7 +308,20 @@ def get_prd_status(prd_path: str | None = None) -> dict[str, any]:
         Dict with PRD metadata and story completion status
     """
     script_dir = Path(__file__).parent
-    prd_file = Path(prd_path) if prd_path else (script_dir / "prd.json")
+    if prd_path:
+        # Resolve user-supplied path relative to script_dir and ensure it does not escape it
+        candidate = (script_dir / prd_path).resolve(strict=False)
+        try:
+            candidate.relative_to(script_dir)
+        except ValueError:
+            return {
+                "status": "invalid_path",
+                "message": "Requested PRD path is outside the allowed directory",
+                "path": str(candidate),
+            }
+        prd_file = candidate
+    else:
+        prd_file = script_dir / "prd.json"
     
     if not prd_file.exists():
         return {"status": "not_found", "path": str(prd_file)}
