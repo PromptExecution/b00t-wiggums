@@ -8,7 +8,7 @@ from typing import TypeVar
 
 from returns.result import Failure, Result
 
-from ralph.config import RalphConfig, load_config
+from ralph.config import RalphConfig
 from ralph.executors import AmpExecutor, ClaudeExecutor, CodexExecutor, ToolExecutor
 from ralph.logging_utils import (
     configure_logging,
@@ -48,28 +48,22 @@ def _build_executor(tool: str, config: RalphConfig) -> ToolExecutor:
     raise ValueError(f"Unsupported tool requested: {tool}")
 
 
-def run_ralph(tool: str, max_iterations: int) -> int:
+def run_ralph(config: RalphConfig, max_iterations: int) -> int:
     """Run the Ralph tool loop for a maximum number of iterations."""
 
     logger = configure_logging()
 
-    try:
-        config = _unwrap_result(load_config(), "Failed to load configuration")
-    except RuntimeError as exc:
-        log_error(logger, "Configuration error", exc)
-        return 1
-
     log_info(
         logger,
-        f"Configuration loaded: tool={tool} iterations={max_iterations} model={config.model}",
+        f"Configuration loaded: tool={config.tool} iterations={max_iterations} model={config.codex_model}",
     )
 
-    executor = _build_executor(tool, config)
+    executor = _build_executor(config.tool, config)
 
     for iteration in range(1, max_iterations + 1):
         log_info(logger, "")
         log_info(logger, "=" * 63)
-        log_info(logger, f"Ralph Iteration {iteration} of {max_iterations} ({tool})")
+        log_info(logger, f"Ralph Iteration {iteration} of {max_iterations} ({config.tool})")
         log_info(logger, "=" * 63)
 
         try:

@@ -6,9 +6,10 @@ import io
 import os
 import subprocess
 import sys
+from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Mapping, MutableMapping, Protocol, Sequence, cast
+from typing import IO, Protocol, cast
 
 from returns.result import Failure, Result, Success
 
@@ -182,34 +183,32 @@ class CodexExecutor:
             "codex",
             "exec",
             "-m",
-            self.config.model,
+            self.config.codex_model,
             "--config",
-            f'model_reasoning_effort="{self.config.reasoning_effort}"',
+            f'model_reasoning_effort="{self.config.codex_reasoning_effort}"',
             "--sandbox",
-            self.config.sandbox,
+            self.config.codex_sandbox,
             "--dangerously-bypass-approvals-and-sandbox",
             "--cd",
             str(self.working_dir),
         ]
 
-        if self.config.extra_args:
-            command.extend(self.config.extra_args)
+        if self.config.codex_extra_args:
+            command.extend(self.config.codex_extra_args.split())
 
         command.append("@ralph-next")
 
-        env_vars: MutableMapping[str, str]
-        if self.env is not None:
-            env_vars = dict(self.env)
-        else:
-            env_vars = dict(os.environ)
+        env_vars: MutableMapping[str, str] = (
+            dict(self.env) if self.env is not None else dict(os.environ)
+        )
 
-        env_vars.setdefault("CODEX_PROMPT_FILE", str(self.config.prompt_file))
-        env_vars.setdefault("CODEX_MODEL", self.config.model)
-        env_vars.setdefault("CODEX_REASONING_EFFORT", self.config.reasoning_effort)
-        env_vars.setdefault("CODEX_SANDBOX", self.config.sandbox)
-        env_vars.setdefault("CODEX_FULL_AUTO", "true" if self.config.full_auto else "false")
-        if self.config.extra_args:
-            env_vars.setdefault("CODEX_EXTRA_ARGS", " ".join(self.config.extra_args))
+        env_vars.setdefault("CODEX_PROMPT_FILE", str(self.config.codex_prompt_file))
+        env_vars.setdefault("CODEX_MODEL", self.config.codex_model)
+        env_vars.setdefault("CODEX_REASONING_EFFORT", self.config.codex_reasoning_effort)
+        env_vars.setdefault("CODEX_SANDBOX", self.config.codex_sandbox)
+        env_vars.setdefault("CODEX_FULL_AUTO", "true" if self.config.codex_full_auto else "false")
+        if self.config.codex_extra_args:
+            env_vars.setdefault("CODEX_EXTRA_ARGS", self.config.codex_extra_args)
 
         return _run_subprocess(tuple(command), cwd=self.working_dir, env=env_vars)
 

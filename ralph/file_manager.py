@@ -24,6 +24,11 @@ def _default_progress_path() -> Path:
     return _project_root() / "progress.txt"
 
 
+# Export constants for use by other modules
+PRD_PATH = _default_prd_path()
+PROGRESS_PATH = _default_progress_path()
+
+
 def read_prd(prd_path: Path | None = None) -> Result[dict[str, Any], Exception]:
     """Read and parse the PRD JSON file."""
     target = prd_path or _default_prd_path()

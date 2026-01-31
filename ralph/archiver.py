@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
-from returns.maybe import Maybe as Option, Nothing, Some
+from returns.maybe import Maybe as Option
+from returns.maybe import Nothing, Some
 from returns.result import Failure, Result, Success
 
 from ralph.file_manager import PRD_PATH, PROGRESS_PATH, get_current_branch
@@ -133,10 +134,7 @@ def check_branch_change() -> bool:
         return False
 
     reset_result = _reset_progress_file()
-    if isinstance(reset_result, Failure):
-        return False
-
-    return True
+    return not isinstance(reset_result, Failure)
 
 
 __all__ = [
