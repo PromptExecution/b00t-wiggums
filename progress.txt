@@ -1,0 +1,40 @@
+# Ralph Progress Log
+Started: 2026-01-31 21:56:53.522243
+---
+## 2026-01-31 22:01:37 - US-004
+- Implemented PRD/progress file management module using returns Result/Option and pathlib
+- Added ralph package scaffolding
+- Files changed: ralph/file_manager.py, ralph/__init__.py, prd.json
+- **Learnings for future iterations:**
+  - mypy and ruff are not available via `uv run` yet; configure/install in a later story before relying on them
+---
+## 2026-01-31 22:05:00 - US-005
+- Implemented branch change detection and archival module
+- Files changed: ralph/archiver.py, prd.json
+- **Learnings for future iterations:**
+  - Pattern: Use `_project_root()` helper for consistent path resolution
+  - Pattern: Return Result[None, Exception] for operations that can fail
+  - Pattern: Use shutil.copy2 to preserve file metadata when archiving
+  - Gotcha: Archive directory naming handles duplicates with counter suffix
+  - Implementation: .last-branch file tracks git branch changes between runs
+  - Implementation: Archives go to archive/{YYYY-MM-DD}-{sanitized-branch-name}/
+---
+## 2026-01-31 23:00:00 - US-006
+- Implemented main iteration loop in ralph/runner.py
+- Created run_ralph(config, max_iterations) function with proper iteration logic
+- Added <promise>COMPLETE</promise> detection
+- Implemented missing dependencies from US-001, US-002, US-003:
+  - ralph/config.py: RalphConfig dataclass with env var loading
+  - ralph/executors.py: ToolExecutor protocol with AmpExecutor, ClaudeExecutor, CodexExecutor
+  - ralph/ralph_cli.py: CLI entry point with argparse, --tool, --version flags
+- Files changed: ralph/runner.py, ralph/config.py, ralph/executors.py, ralph/ralph_cli.py, ralph/file_manager.py, prd.json
+- **Learnings for future iterations:**
+  - Pattern: Use `returns.maybe` not `returns.option` for Maybe/Some/Nothing types
+  - Pattern: ToolExecutor uses Protocol pattern for duck typing without inheritance
+  - Pattern: Executors use subprocess.Popen with tee-like output streaming to stderr
+  - Pattern: Config uses dataclass with @classmethod from_env() factory method
+  - Implementation: runner.py handles executor failures gracefully and continues iterations
+  - Implementation: Sleep 2 seconds between iterations to avoid hammering resources
+  - Gotcha: mypy and returns need to be installed via `uv pip install` before typecheck
+  - Context: US-001, US-002, US-003 were marked complete but code didn't exist; implemented during US-006
+---
