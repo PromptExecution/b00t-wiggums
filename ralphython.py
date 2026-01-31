@@ -1,0 +1,431 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "fastmcp>=3.0.0b1",
+# ]
+# ///
+
+import argparse
+import datetime as _dt
+import json
+import logging
+import os
+import shlex
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+from fastmcp import FastMCP
+
+# Initialize FastMCP server
+mcp = FastMCP("Ralph Wiggum 🎯")
+
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+LOGGER = logging.getLogger("ralph")
+
+
+def _warn_tool_deprecated():
+    LOGGER.warning("⚠️  Warning: --tool is deprecated, use --agent instead")
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        prog="ralph.sh",
+        description="Ralph Wiggum - Long-running AI agent loop",
+    )
+    parser.add_argument("--agent", choices=("amp", "claude", "codex"))
+    parser.add_argument("--prd", help="Path to prd.json to ingest before running")
+    parser.add_argument("--tool", choices=("amp", "claude", "codex"), help=argparse.SUPPRESS)
+    parser.add_argument("max_iterations", nargs="?", type=int, default=10)
+
+    args = parser.parse_args(argv)
+
+    if args.tool:
+        _warn_tool_deprecated()
+        if not args.agent:
+            args.agent = args.tool
+
+    if not args.agent:
+        parser.error("--agent is required. Use --agent amp|claude|codex.")
+
+    return args
+
+
+def _read_branch_name(prd_file: Path) -> str:
+    try:
+        data = json.loads(prd_file.read_text())
+    except FileNotFoundError:
+        LOGGER.warning("PRD file not found: %s", prd_file)
+        return ""
+    except json.JSONDecodeError as exc:
+        LOGGER.error("Failed to parse PRD JSON: %s", exc)
+        return ""
+    branch = data.get("branchName")
+    return branch or ""
+
+
+def _ensure_progress_file(progress_file: Path) -> None:
+    if progress_file.exists():
+        return
+    progress_file.write_text(
+        "# Ralph Progress Log\n"
+        f"Started: {_dt.datetime.now()}\n"
+        "---\n"
+    )
+
+
+def _archive_previous_run(
+    prd_file: Path, progress_file: Path, archive_dir: Path, last_branch_file: Path
+) -> None:
+    if not prd_file.exists() or not last_branch_file.exists():
+        return
+
+    current_branch = _read_branch_name(prd_file)
+    try:
+        last_branch = last_branch_file.read_text().strip()
+    except (FileNotFoundError, OSError):
+        # Expected errors when file doesn't exist or is inaccessible
+        last_branch = ""
+    except Exception as e:
+        # Log unexpected errors for debugging
+        LOGGER.warning("Unexpected error reading last branch file: %s", e)
+        last_branch = ""
+
+    if not current_branch or not last_branch or current_branch == last_branch:
+        return
+
+    date_str = _dt.date.today().isoformat()
+    folder_name = last_branch.removeprefix("ralph/")
+    archive_folder = archive_dir / f"{date_str}-{folder_name}"
+
+    LOGGER.info("Archiving previous run: %s", last_branch)
+    archive_folder.mkdir(parents=True, exist_ok=True)
+    if prd_file.exists():
+        (archive_folder / prd_file.name).write_text(prd_file.read_text())
+    if progress_file.exists():
+        (archive_folder / progress_file.name).write_text(progress_file.read_text())
+    LOGGER.info("   Archived to: %s", archive_folder)
+
+    progress_file.write_text(
+        "# Ralph Progress Log\n"
+        f"Started: {_dt.datetime.now()}\n"
+        "---\n"
+    )
+
+
+def _track_current_branch(prd_file: Path, last_branch_file: Path) -> None:
+    if not prd_file.exists():
+        return
+    current_branch = _read_branch_name(prd_file)
+    if current_branch:
+        last_branch_file.write_text(current_branch)
+
+
+def _run_and_capture(cmd: list[str], stdin_path: Path | None = None) -> str:
+    stdin = None
+    try:
+        if stdin_path is not None:
+            stdin = stdin_path.open("r")
+        proc = subprocess.Popen(
+            cmd,
+            stdin=stdin,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        assert proc.stdout is not None
+        output_chunks: list[str] = []
+        for line in proc.stdout:
+            sys.stderr.write(line)
+            output_chunks.append(line)
+        proc.wait()
+        return "".join(output_chunks)
+    finally:
+        if stdin is not None:
+            stdin.close()
+
+
+def main(argv: list[str]) -> int:
+    args = _parse_args(argv)
+
+    script_dir = Path(__file__).resolve().parent
+    prd_file = script_dir / "prd.json"
+    progress_file = script_dir / "progress.txt"
+    archive_dir = script_dir / "archive"
+    last_branch_file = script_dir / ".last-branch"
+
+    _codex_prompt_file = Path(
+        os.environ.get("CODEX_PROMPT_FILE", str(script_dir / "prompt.md"))
+    )
+    codex_model = os.environ.get("CODEX_MODEL", "gpt-5.2-codex")
+    codex_reasoning_effort = os.environ.get("CODEX_REASONING_EFFORT", "high")
+    codex_sandbox = os.environ.get("CODEX_SANDBOX", "workspace-write")
+    codex_extra_args = os.environ.get("CODEX_EXTRA_ARGS", "")
+
+    if args.prd:
+        prd_src = Path(args.prd).expanduser()
+        if not prd_src.exists():
+            LOGGER.error("Error: PRD file not found: %s", prd_src)
+            return 1
+        prd_file.write_text(prd_src.read_text())
+
+    _archive_previous_run(prd_file, progress_file, archive_dir, last_branch_file)
+    _track_current_branch(prd_file, last_branch_file)
+    _ensure_progress_file(progress_file)
+
+    LOGGER.info(
+        "Starting Ralph - Agent: %s - Max iterations: %s",
+        args.agent,
+        args.max_iterations,
+    )
+
+    for i in range(1, args.max_iterations + 1):
+        LOGGER.info("")
+        LOGGER.info("===============================================================")
+        LOGGER.info("  Ralph Iteration %s of %s (%s)", i, args.max_iterations, args.agent)
+        LOGGER.info("===============================================================")
+
+        if args.agent == "amp":
+            output = _run_and_capture(
+                ["amp", "--dangerously-allow-all"],
+                stdin_path=script_dir / "prompt.md",
+            )
+        elif args.agent == "codex":
+            codex_args = [
+                "codex",
+                "exec",
+                "-m",
+                codex_model,
+                "--config",
+                f"model_reasoning_effort=\"{codex_reasoning_effort}\"",
+                "--sandbox",
+                codex_sandbox,
+                "--dangerously-bypass-approvals-and-sandbox",
+                "--cd",
+                str(script_dir),
+            ]
+            if codex_extra_args:
+                codex_args.extend(shlex.split(codex_extra_args))
+            codex_args.append("@ralph-next")
+            output = _run_and_capture(codex_args)
+        else:
+            output = _run_and_capture(
+                [
+                    "claude",
+                    "--model",
+                    "sonnet",
+                    "--dangerously-skip-permissions",
+                    "--print",
+                ],
+                stdin_path=script_dir / "CLAUDE.md",
+            )
+            sys.stdout.write(output)
+
+        if "<promise>COMPLETE</promise>" in output:
+            LOGGER.info("")
+            LOGGER.info("Ralph completed all tasks!")
+            LOGGER.info("Completed at iteration %s of %s", i, args.max_iterations)
+            return 0
+
+        LOGGER.info("Iteration %s complete. Continuing...", i)
+        time.sleep(2)
+
+    LOGGER.info("")
+    LOGGER.info(
+        "Ralph reached max iterations (%s) without completing all tasks.",
+        args.max_iterations,
+    )
+    LOGGER.info("Check %s for status.", progress_file)
+    return 1
+
+
+@mcp.tool()
+def run_ralph_iteration(
+    agent: str = "codex",
+    max_iterations: int = 1,
+    prd_path: str | None = None
+) -> dict[str, str | int]:
+    """
+    Run Ralph autonomous agent for specified iterations.
+    
+    Args:
+        agent: Agent to use (amp, claude, or codex)
+        max_iterations: Maximum number of iterations to run
+        prd_path: Optional path to PRD JSON file
+        
+    Returns:
+        Status dict with exit_code, output, and iterations_completed
+    """
+    args = ["--agent", agent, str(max_iterations)]
+    if prd_path:
+        args.extend(["--prd", prd_path])
+    
+    exit_code = main(args)
+    script_dir = Path(__file__).parent
+    progress_file = script_dir / "progress.txt"
+    
+    return {
+        "exit_code": exit_code,
+        "status": "complete" if exit_code == 0 else "incomplete",
+        "max_iterations": max_iterations,
+        "progress_file": str(progress_file),
+    }
+
+
+@mcp.tool()
+def get_ralph_status() -> dict[str, any]:
+    """
+    Get current Ralph execution status from progress.txt.
+    
+    Returns:
+        Dict with latest progress information
+    """
+    script_dir = Path(__file__).parent
+    progress_file = script_dir / "progress.txt"
+    
+    if not progress_file.exists():
+        return {"status": "no_progress_file", "message": "No progress.txt found"}
+    
+    content = progress_file.read_text()
+    lines = content.strip().split("\n")
+    
+    return {
+        "status": "active",
+        "progress_file": str(progress_file),
+        "last_lines": lines[-10:] if len(lines) > 10 else lines,
+        "total_lines": len(lines),
+    }
+
+
+@mcp.tool()
+def get_prd_status(prd_path: str | None = None) -> dict[str, any]:
+    """
+    Get PRD completion status.
+    
+    Args:
+        prd_path: Optional path to PRD file (defaults to ./prd.json)
+        
+    Returns:
+        Dict with PRD metadata and story completion status
+    """
+    script_dir = Path(__file__).parent
+    if prd_path:
+        # Resolve user-supplied path relative to script_dir and ensure it does not escape it
+        candidate = (script_dir / prd_path).resolve(strict=False)
+        try:
+            candidate.relative_to(script_dir)
+        except ValueError:
+            return {
+                "status": "invalid_path",
+                "message": "Requested PRD path is outside the allowed directory",
+                "path": str(candidate),
+            }
+        prd_file = candidate
+    else:
+        prd_file = script_dir / "prd.json"
+    
+    if not prd_file.exists():
+        return {"status": "not_found", "path": str(prd_file)}
+    
+    with open(prd_file) as f:
+        try:
+            prd_data = json.load(f)
+        except json.JSONDecodeError as exc:
+            return {
+                "status": "invalid_json",
+                "path": str(prd_file),
+                "error": f"Invalid JSON in PRD file: {exc.msg}",
+                "lineno": exc.lineno,
+                "colno": exc.colno,
+            }
+    
+    # Validate PRD structure
+    if "userStories" not in prd_data:
+        return {
+            "status": "invalid_structure",
+            "error": "PRD missing required 'userStories' key",
+            "path": str(prd_file),
+        }
+    
+    user_stories = prd_data["userStories"]
+    if not isinstance(user_stories, list):
+        return {
+            "status": "invalid_structure",
+            "error": "'userStories' must be a list",
+            "path": str(prd_file),
+        }
+    
+    # Validate each story has required fields
+    for idx, story in enumerate(user_stories):
+        if not isinstance(story, dict):
+            return {
+                "status": "invalid_structure",
+                "error": f"Story at index {idx} is not a dictionary",
+                "path": str(prd_file),
+            }
+        if "id" not in story:
+            return {
+                "status": "invalid_structure",
+                "error": f"Story at index {idx} missing required 'id' key",
+                "path": str(prd_file),
+            }
+        if "title" not in story:
+            return {
+                "status": "invalid_structure",
+                "error": f"Story at index {idx} missing required 'title' key",
+                "path": str(prd_file),
+            }
+    
+    total = len(user_stories)
+    completed = sum(1 for story in user_stories if story.get("passes", False))
+    incomplete = [
+        {"id": s["id"], "title": s["title"]}
+        for s in user_stories
+        if not s.get("passes", False)
+    ]
+    
+    return {
+        "status": "loaded",
+        "project": prd_data.get("project", "Unknown"),
+        "total_stories": total,
+        "completed_stories": completed,
+        "completion_percentage": round((completed / total) * 100, 1) if total > 0 else 0,
+        "incomplete_stories": incomplete[:5],  # First 5 incomplete
+    }
+
+
+@mcp.resource("ralph://prd")
+def get_prd_resource() -> str:
+    """Get the current PRD as a resource."""
+    script_dir = Path(__file__).parent
+    prd_file = script_dir / "prd.json"
+    
+    if not prd_file.exists():
+        return "No PRD file found"
+    
+    return prd_file.read_text()
+
+
+@mcp.resource("ralph://progress")
+def get_progress_resource() -> str:
+    """Get the current progress log as a resource."""
+    script_dir = Path(__file__).parent
+    progress_file = script_dir / "progress.txt"
+    
+    if not progress_file.exists():
+        return "No progress file found"
+    
+    return progress_file.read_text()
+
+
+if __name__ == "__main__":
+    # Check if running as MCP server or CLI
+    if "--mcp" in sys.argv:
+        sys.argv.remove("--mcp")
+        mcp.run()
+    else:
+        raise SystemExit(main(sys.argv[1:]))

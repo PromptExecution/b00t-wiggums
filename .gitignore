@@ -11,3 +11,17 @@ progress.txt
 
 #Claude
 .claude/
+
+# Python caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor/backup files
+*~
+*.swp
+
+# UV/temporary artifacts
+=3.0.0b1
