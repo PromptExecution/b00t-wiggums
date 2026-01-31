@@ -35,7 +35,15 @@ def main() -> int:
 
     # Import here to avoid circular imports
     from ralph.config import RalphConfig
+    from ralph.file_manager import initialize_progress_file
     from ralph.runner import run_ralph
+    from returns.result import Failure
+
+    # Initialize progress file if it doesn't exist
+    result = initialize_progress_file()
+    if isinstance(result, Failure):
+        print(f"Error initializing progress file: {result.failure()}", file=sys.stderr)
+        return 1
 
     config = RalphConfig.from_env(tool=args.tool)
     return run_ralph(config, args.max_iterations)

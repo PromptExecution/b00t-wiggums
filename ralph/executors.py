@@ -53,6 +53,8 @@ class _TeeToStderr(io.TextIOBase):
 
     def __init__(self) -> None:
         self._parts: list[str] = []
+        # Create a pipe to provide fileno() support
+        self._pipe_read, self._pipe_write = os.pipe()
 
     def writable(self) -> bool:  # pragma: no cover - io.TextIOBase requirement
         return True
@@ -61,10 +63,31 @@ class _TeeToStderr(io.TextIOBase):
         sys.stderr.write(data)
         sys.stderr.flush()
         self._parts.append(data)
+        # Also write to the pipe for fileno() compatibility
+        try:
+            os.write(self._pipe_write, data.encode("utf-8"))
+        except OSError:  # pragma: no cover
+            pass  # Ignore pipe write errors
         return len(data)
 
     def flush(self) -> None:  # pragma: no cover - delegated flush
         sys.stderr.flush()
+
+    def fileno(self) -> int:
+        """Return the write end of the pipe for subprocess compatibility."""
+        return self._pipe_write
+
+    def close(self) -> None:
+        """Close the pipe file descriptors."""
+        try:
+            os.close(self._pipe_read)
+        except OSError:  # pragma: no cover
+            pass
+        try:
+            os.close(self._pipe_write)
+        except OSError:  # pragma: no cover
+            pass
+        super().close()
 
     @property
     def value(self) -> str:
@@ -87,12 +110,14 @@ def _run_subprocess(
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
 ) -> Result[str, ExecutorError]:
-    tee_stream = _TeeToStderr()
-    stdout_stream: IO[str] = cast(IO[str], tee_stream)
     cwd_value = str(cwd) if cwd is not None else None
     env_value: MutableMapping[str, str] | None = None
     if env is not None:
         env_value = dict(env)
+
+    tee_stream = _TeeToStderr()
+    stdout_stream: IO[str] = cast(IO[str], tee_stream)
+
     try:
         completed = subprocess.run(
             command,
@@ -104,10 +129,26 @@ def _run_subprocess(
             env=env_value,
             check=False,
         )
+        # Close the write end so we can read remaining data
+        try:
+            os.close(tee_stream._pipe_write)
+        except OSError:
+            pass
+        # Read any remaining data from the read end
+        try:
+            remaining = os.read(tee_stream._pipe_read, 1024 * 1024).decode("utf-8")
+            if remaining:
+                tee_stream._parts.append(remaining)
+                sys.stderr.write(remaining)
+                sys.stderr.flush()
+        except OSError:
+            pass
     except OSError as exc:
         log_error(configure_logging(), f"Failed to execute {' '.join(command)}", exc)
         detail = f"Failed to execute {' '.join(command)}"
         return Failure(ExecutorError(detail=detail, command=tuple(command), output=str(exc)))
+    finally:
+        tee_stream.close()
 
     output = tee_stream.value
     if completed.returncode == 0:

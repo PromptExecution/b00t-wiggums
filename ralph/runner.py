@@ -18,10 +18,9 @@ from ralph.logging_utils import (
     log_warning,
 )
 
-PACKAGE_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = PACKAGE_DIR.parent
-PROMPT_FILE = PROJECT_ROOT / "prompt.md"
-CLAUDE_PROMPT_FILE = PROJECT_ROOT / "CLAUDE.md"
+WORKING_DIR = Path.cwd()
+PROMPT_FILE = WORKING_DIR / "prompt.md"
+CLAUDE_PROMPT_FILE = WORKING_DIR / "CLAUDE.md"
 COMPLETE_MARKER = "<promise>COMPLETE</promise>"
 ResultValue = TypeVar("ResultValue")
 
@@ -35,16 +34,21 @@ def _unwrap_result(result: Result[ResultValue, Exception], message: str) -> Resu
     return result.unwrap()
 
 
+def _check_for_completion(output: str) -> bool:
+    """Check if the output contains the completion marker."""
+    return COMPLETE_MARKER in output
+
+
 def _build_executor(tool: str, config: RalphConfig) -> ToolExecutor:
     """Create the executor for the selected tool."""
 
     match tool:
         case "amp":
-            return AmpExecutor(prompt_path=PROMPT_FILE, working_dir=PROJECT_ROOT)
+            return AmpExecutor(prompt_path=PROMPT_FILE, working_dir=WORKING_DIR)
         case "claude":
-            return ClaudeExecutor(prompt_path=CLAUDE_PROMPT_FILE, working_dir=PROJECT_ROOT)
+            return ClaudeExecutor(prompt_path=CLAUDE_PROMPT_FILE, working_dir=WORKING_DIR)
         case "codex":
-            return CodexExecutor(config=config, working_dir=PROJECT_ROOT)
+            return CodexExecutor(config=config, working_dir=WORKING_DIR)
     raise ValueError(f"Unsupported tool requested: {tool}")
 
 
@@ -72,7 +76,7 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
             log_error(logger, "Tool execution failed", exc)
             return 1
 
-        if COMPLETE_MARKER in output:
+        if _check_for_completion(output):
             log_info(logger, "")
             log_success(logger, "Ralph completed all tasks!")
             log_success(logger, f"Completed at iteration {iteration} of {max_iterations}")

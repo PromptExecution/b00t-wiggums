@@ -13,7 +13,8 @@ Option = Maybe
 
 
 def _project_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    """Get the current working directory (where ralph is being run from)."""
+    return Path.cwd()
 
 
 def _default_prd_path() -> Path:
