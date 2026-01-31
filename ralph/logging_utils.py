@@ -47,9 +47,7 @@ def log_error(logger: logging.Logger, message: str, exc: Exception | None = None
     if exc is None:
         logger.error("❌ %s", message)
         return
-    logger.error(
-        "❌ %s", message, exc_info=(type(exc), exc, exc.__traceback__)
-    )
+    logger.error("❌ %s", message, exc_info=(type(exc), exc, exc.__traceback__))
 
 
 __all__ = [

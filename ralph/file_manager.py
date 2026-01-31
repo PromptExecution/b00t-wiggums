@@ -59,11 +59,7 @@ def initialize_progress_file(progress_path: Path | None = None) -> Result[None, 
     try:
         if target.exists():
             return Success(None)
-        target.write_text(
-            "# Ralph Progress Log\n"
-            f"Started: {datetime.now()}\n"
-            "---\n"
-        )
+        target.write_text(f"# Ralph Progress Log\nStarted: {datetime.now()}\n---\n")
     except Exception as exc:
         return Failure(exc)
     return Success(None)

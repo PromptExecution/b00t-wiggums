@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import subprocess
@@ -64,10 +65,8 @@ class _TeeToStderr(io.TextIOBase):
         sys.stderr.flush()
         self._parts.append(data)
         # Also write to the pipe for fileno() compatibility
-        try:
+        with contextlib.suppress(OSError):
             os.write(self._pipe_write, data.encode("utf-8"))
-        except OSError:  # pragma: no cover
-            pass  # Ignore pipe write errors
         return len(data)
 
     def flush(self) -> None:  # pragma: no cover - delegated flush
@@ -79,14 +78,10 @@ class _TeeToStderr(io.TextIOBase):
 
     def close(self) -> None:
         """Close the pipe file descriptors."""
-        try:
+        with contextlib.suppress(OSError):
             os.close(self._pipe_read)
-        except OSError:  # pragma: no cover
-            pass
-        try:
+        with contextlib.suppress(OSError):
             os.close(self._pipe_write)
-        except OSError:  # pragma: no cover
-            pass
         super().close()
 
     @property
@@ -130,19 +125,15 @@ def _run_subprocess(
             check=False,
         )
         # Close the write end so we can read remaining data
-        try:
+        with contextlib.suppress(OSError):
             os.close(tee_stream._pipe_write)
-        except OSError:
-            pass
         # Read any remaining data from the read end
-        try:
+        with contextlib.suppress(OSError):
             remaining = os.read(tee_stream._pipe_read, 1024 * 1024).decode("utf-8")
             if remaining:
                 tee_stream._parts.append(remaining)
                 sys.stderr.write(remaining)
                 sys.stderr.flush()
-        except OSError:
-            pass
     except OSError as exc:
         log_error(configure_logging(), f"Failed to execute {' '.join(command)}", exc)
         detail = f"Failed to execute {' '.join(command)}"

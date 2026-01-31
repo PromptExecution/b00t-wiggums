@@ -34,10 +34,11 @@ def main() -> int:
     args = parser.parse_args()
 
     # Import here to avoid circular imports
+    from returns.result import Failure
+
     from ralph.config import RalphConfig
     from ralph.file_manager import initialize_progress_file
     from ralph.runner import run_ralph
-    from returns.result import Failure
 
     # Initialize progress file if it doesn't exist
     result = initialize_progress_file()

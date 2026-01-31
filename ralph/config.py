@@ -30,13 +30,10 @@ class RalphConfig:
         root = _project_root()
         return cls(
             tool=tool,
-            codex_prompt_file=Path(
-                os.environ.get("CODEX_PROMPT_FILE", str(root / "CLAUDE.md"))
-            ),
+            codex_prompt_file=Path(os.environ.get("CODEX_PROMPT_FILE", str(root / "CLAUDE.md"))),
             codex_model=os.environ.get("CODEX_MODEL", "gpt-5-codex"),
             codex_reasoning_effort=os.environ.get("CODEX_REASONING_EFFORT", "high"),
             codex_sandbox=os.environ.get("CODEX_SANDBOX", "workspace-write"),
-            codex_full_auto=os.environ.get("CODEX_FULL_AUTO", "true").lower()
-            == "true",
+            codex_full_auto=os.environ.get("CODEX_FULL_AUTO", "true").lower() == "true",
             codex_extra_args=os.environ.get("CODEX_EXTRA_ARGS", ""),
         )
