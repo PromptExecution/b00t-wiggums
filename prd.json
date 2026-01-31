@@ -125,7 +125,7 @@
         "Test with: uv run ralph --help"
       ],
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -142,7 +142,7 @@
         "Typecheck passes with mypy --strict"
       ],
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
