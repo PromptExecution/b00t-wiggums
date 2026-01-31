@@ -332,7 +332,16 @@ def get_prd_status(prd_path: str | None = None) -> dict[str, any]:
         return {"status": "not_found", "path": str(prd_file)}
     
     with open(prd_file) as f:
-        prd_data = json.load(f)
+        try:
+            prd_data = json.load(f)
+        except json.JSONDecodeError as exc:
+            return {
+                "status": "invalid_json",
+                "path": str(prd_file),
+                "error": f"Invalid JSON in PRD file: {exc.msg}",
+                "lineno": exc.lineno,
+                "colno": exc.colno,
+            }
     
     # Validate PRD structure
     if "userStories" not in prd_data:
