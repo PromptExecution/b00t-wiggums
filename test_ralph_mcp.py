@@ -27,14 +27,27 @@ async def test_ralph_mcp():
             # Test get_prd_status tool
             print("📋 Testing get_prd_status tool...")
             result = await client.call_tool("get_prd_status", {})
-            print(f"   PRD Status: {result['project']}")
-            print(f"   Completed: {result['completed_stories']}/{result['total_stories']} ({result['completion_percentage']}%)\n")
+            if not isinstance(result, dict):
+                print(f"   Unexpected PRD status response (not a dict): {result!r}\n")
+            elif not all(key in result for key in ("project", "completed_stories", "total_stories", "completion_percentage")):
+                print(f"   Incomplete PRD status response (missing keys): {result!r}\n")
+            else:
+                print(f"   PRD Status: {result['project']}")
+                print(
+                    f"   Completed: {result['completed_stories']}/{result['total_stories']} "
+                    f"({result['completion_percentage']}%)\n"
+                )
             
             # Test get_ralph_status tool
             print("📊 Testing get_ralph_status tool...")
             result = await client.call_tool("get_ralph_status", {})
-            print(f"   Status: {result['status']}")
-            print(f"   Total lines: {result.get('total_lines', 0)}\n")
+            if not isinstance(result, dict):
+                print(f"   Unexpected Ralph status response (not a dict): {result!r}\n")
+            elif "status" not in result:
+                print(f"   Incomplete Ralph status response (missing 'status'): {result!r}\n")
+            else:
+                print(f"   Status: {result['status']}")
+                print(f"   Total lines: {result.get('total_lines', 0)}\n")
             
             # Test resources
             print("📂 Testing ralph://prd resource...")
