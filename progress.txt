@@ -131,3 +131,21 @@ Started: 2026-01-31 21:56:53.522243
   - Context: Integration tests verify end-to-end CLI behavior including iteration loops
   - Context: Fix ensures completion marker detection works correctly in production
 ---
+## 2026-02-01 09:15:00 - US-011
+- Created justfile with Python ralph commands
+- Added ralph command with configurable TOOL and ITERATIONS parameters
+- Added ralph-test, ralph-check, ralph-format, ralph-all commands
+- Added convenience commands: ralph-amp, ralph-claude, ralph-codex
+- Fixed ruff linting issues in ralph/executors.py
+- Changed try-except-pass blocks to contextlib.suppress(OSError)
+- All justfile commands tested and working
+- All quality checks passing (mypy, ruff, pytest)
+- Files changed: justfile (new), ralph/executors.py, prd.json
+- **Learnings for future iterations:**
+  - Pattern: justfile uses casey/just syntax with PARAM='default' for parameters
+  - Pattern: Use contextlib.suppress() instead of try-except-pass for cleaner code
+  - Pattern: Commands can be chained with dependencies (ralph-all: ralph-format ralph-check ralph-test)
+  - Implementation: just -l lists all available commands with descriptions
+  - Context: justfile provides convenient shortcuts for common Ralph operations
+  - Context: ruff SIM105 rule prefers contextlib.suppress over try-except-pass
+---
