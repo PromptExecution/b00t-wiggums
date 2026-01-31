@@ -5,8 +5,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from returns.option import Nothing, Option, Some
+from returns.maybe import Maybe, Nothing, Some
 from returns.result import Failure, Result, Success
+
+# Type alias for backwards compatibility
+Option = Maybe
 
 
 def _project_root() -> Path:
@@ -32,7 +35,7 @@ def read_prd(prd_path: Path | None = None) -> Result[dict[str, Any], Exception]:
     return Success(data)
 
 
-def get_current_branch(prd_path: Path | None = None) -> Option[str]:
+def get_current_branch(prd_path: Path | None = None) -> Maybe[str]:
     """Get the configured branch name from the PRD."""
     result = read_prd(prd_path)
     if isinstance(result, Failure):
