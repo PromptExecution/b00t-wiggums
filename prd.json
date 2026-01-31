@@ -210,7 +210,7 @@
         "Keep bash ralph.sh for backwards compatibility (note deprecation)"
       ],
       "priority": 12,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

@@ -149,3 +149,35 @@ Started: 2026-01-31 21:56:53.522243
   - Context: justfile provides convenient shortcuts for common Ralph operations
   - Context: ruff SIM105 rule prefers contextlib.suppress over try-except-pass
 ---
+## 2026-02-01 - US-012
+- Created comprehensive documentation for Python Ralph implementation
+- Created ralph/README.md with complete usage guide:
+  * Installation instructions with uv
+  * Usage examples for amp, claude, and codex tools
+  * Environment variables table with all codex configuration options
+  * Troubleshooting section with common issues and solutions
+  * Migration guide from bash version
+  * Architecture overview and design principles
+  * Development workflow (tests, type checking, linting)
+- Updated main README.md:
+  * Added Python rewrite callout with link to ralph/README.md
+  * Updated prerequisites to include Python 3.11+ and uv
+  * Updated workflow section with Python and bash examples
+  * Added migration section explaining benefits and breaking changes
+  * Updated key files table to include ralph/ directory and justfile
+- Updated ralph.sh with deprecation notice:
+  * Added warning message directing users to Python version
+  * Maintained backwards compatibility (--agent → --tool conversion)
+  * Delegates to Python version via `uv run ralph`
+- All quality checks passing (mypy, ruff, pytest)
+- Files changed: ralph/README.md (new), README.md, ralph.sh, prd.json
+- **Learnings for future iterations:**
+  - Pattern: ralph/README.md is the canonical Python documentation source
+  - Pattern: Main README.md provides high-level overview and links to detailed docs
+  - Pattern: Deprecation notices in bash scripts guide users to new approach
+  - Pattern: Backwards compatibility helps with gradual migration
+  - Implementation: Environment variables table format makes configuration easy to reference
+  - Implementation: Troubleshooting section addresses common Python/uv issues
+  - Implementation: Examples section shows all three tools (amp, claude, codex)
+  - Context: Documentation is complete and ready for users to migrate
+---
