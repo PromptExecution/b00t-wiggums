@@ -9,13 +9,13 @@
 import argparse
 import datetime as _dt
 import json
+import logging
 import os
 import shlex
 import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 from fastmcp import FastMCP
 
@@ -23,8 +23,12 @@ from fastmcp import FastMCP
 mcp = FastMCP("Ralph Wiggum 🎯")
 
 
-def _warn_tool_deprecated() -> None:
-    print("⚠️  Warning: --tool is deprecated, use --agent instead", file=sys.stderr)
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+LOGGER = logging.getLogger("ralph")
+
+
+def _warn_tool_deprecated():
+    LOGGER.warning("⚠️  Warning: --tool is deprecated, use --agent instead")
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -88,13 +92,13 @@ def _archive_previous_run(
     folder_name = last_branch.removeprefix("ralph/")
     archive_folder = archive_dir / f"{date_str}-{folder_name}"
 
-    print(f"Archiving previous run: {last_branch}")
+    LOGGER.info("Archiving previous run: %s", last_branch)
     archive_folder.mkdir(parents=True, exist_ok=True)
     if prd_file.exists():
         (archive_folder / prd_file.name).write_text(prd_file.read_text())
     if progress_file.exists():
         (archive_folder / progress_file.name).write_text(progress_file.read_text())
-    print(f"   Archived to: {archive_folder}")
+    LOGGER.info("   Archived to: %s", archive_folder)
 
     progress_file.write_text(
         "# Ralph Progress Log\n"
@@ -156,7 +160,7 @@ def main(argv: list[str]) -> int:
     if args.prd:
         prd_src = Path(args.prd).expanduser()
         if not prd_src.exists():
-            print(f"Error: PRD file not found: {prd_src}", file=sys.stderr)
+            LOGGER.error("Error: PRD file not found: %s", prd_src)
             return 1
         prd_file.write_text(prd_src.read_text())
 
@@ -164,13 +168,17 @@ def main(argv: list[str]) -> int:
     _track_current_branch(prd_file, last_branch_file)
     _ensure_progress_file(progress_file)
 
-    print(f"Starting Ralph - Agent: {args.agent} - Max iterations: {args.max_iterations}")
+    LOGGER.info(
+        "Starting Ralph - Agent: %s - Max iterations: %s",
+        args.agent,
+        args.max_iterations,
+    )
 
     for i in range(1, args.max_iterations + 1):
-        print("")
-        print("===============================================================")
-        print(f"  Ralph Iteration {i} of {args.max_iterations} ({args.agent})")
-        print("===============================================================")
+        LOGGER.info("")
+        LOGGER.info("===============================================================")
+        LOGGER.info("  Ralph Iteration %s of %s (%s)", i, args.max_iterations, args.agent)
+        LOGGER.info("===============================================================")
 
         if args.agent == "amp":
             output = _run_and_capture(
@@ -209,19 +217,20 @@ def main(argv: list[str]) -> int:
             sys.stdout.write(output)
 
         if "<promise>COMPLETE</promise>" in output:
-            print("")
-            print("Ralph completed all tasks!")
-            print(f"Completed at iteration {i} of {args.max_iterations}")
+            LOGGER.info("")
+            LOGGER.info("Ralph completed all tasks!")
+            LOGGER.info("Completed at iteration %s of %s", i, args.max_iterations)
             return 0
 
-        print(f"Iteration {i} complete. Continuing...")
+        LOGGER.info("Iteration %s complete. Continuing...", i)
         time.sleep(2)
 
-    print("")
-    print(
-        f"Ralph reached max iterations ({args.max_iterations}) without completing all tasks."
+    LOGGER.info("")
+    LOGGER.info(
+        "Ralph reached max iterations (%s) without completing all tasks.",
+        args.max_iterations,
     )
-    print(f"Check {progress_file} for status.")
+    LOGGER.info("Check %s for status.", progress_file)
     return 1
 
 
@@ -259,7 +268,7 @@ def run_ralph_iteration(
 
 
 @mcp.tool()
-def get_ralph_status() -> dict[str, Any]:
+def get_ralph_status() -> dict[str, any]:
     """
     Get current Ralph execution status from progress.txt.
     
@@ -284,7 +293,7 @@ def get_ralph_status() -> dict[str, Any]:
 
 
 @mcp.tool()
-def get_prd_status(prd_path: str | None = None) -> dict[str, Any]:
+def get_prd_status(prd_path: str | None = None) -> dict[str, any]:
     """
     Get PRD completion status.
     
