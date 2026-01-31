@@ -57,7 +57,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def _read_branch_name(prd_file: Path) -> str:
     try:
         data = json.loads(prd_file.read_text())
-    except Exception:
+    except FileNotFoundError:
+        LOGGER.warning("PRD file not found: %s", prd_file)
+        return ""
+    except json.JSONDecodeError as exc:
+        LOGGER.error("Failed to parse PRD JSON: %s", exc)
         return ""
     branch = data.get("branchName")
     return branch or ""
