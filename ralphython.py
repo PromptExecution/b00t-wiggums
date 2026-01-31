@@ -86,7 +86,12 @@ def _archive_previous_run(
     current_branch = _read_branch_name(prd_file)
     try:
         last_branch = last_branch_file.read_text().strip()
-    except Exception:
+    except (FileNotFoundError, OSError):
+        # Expected errors when file doesn't exist or is inaccessible
+        last_branch = ""
+    except Exception as e:
+        # Log unexpected errors for debugging
+        LOGGER.warning("Unexpected error reading last branch file: %s", e)
         last_branch = ""
 
     if not current_branch or not last_branch or current_branch == last_branch:
