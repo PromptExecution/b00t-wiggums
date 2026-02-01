@@ -105,35 +105,50 @@ def _run_subprocess(
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
 ) -> Result[str, ExecutorError]:
+    """
+    Run subprocess with streaming output to prevent deadlock.
+
+    Uses Popen with real-time stdout reading to avoid pipe buffer overflow
+    that would cause subprocess.run() to hang.
+    """
     cwd_value = str(cwd) if cwd is not None else None
     env_value: MutableMapping[str, str] | None = None
     if env is not None:
         env_value = dict(env)
 
     tee_stream = _TeeToStderr()
-    stdout_stream: IO[str] = cast(IO[str], tee_stream)
+    returncode: int | None = None
 
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
-            input=input_text,
-            stdout=stdout_stream,
+            stdin=subprocess.PIPE if input_text is not None else None,
+            stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
             cwd=cwd_value,
             env=env_value,
-            check=False,
         )
-        # Close the write end so we can read remaining data
-        with contextlib.suppress(OSError):
-            os.close(tee_stream._pipe_write)
-        # Read any remaining data from the read end
-        with contextlib.suppress(OSError):
-            remaining = os.read(tee_stream._pipe_read, 1024 * 1024).decode("utf-8")
-            if remaining:
-                tee_stream._parts.append(remaining)
-                sys.stderr.write(remaining)
+
+        # Send input and close stdin so child sees EOF
+        if input_text is not None and process.stdin is not None:
+            try:
+                process.stdin.write(input_text)
+                process.stdin.close()
+            except OSError:
+                # Ignore errors writing to stdin (e.g., if process exits early)
+                with contextlib.suppress(OSError):
+                    process.stdin.close()
+
+        # Stream output from child, teeing to stderr and accumulating
+        if process.stdout is not None:
+            for line in process.stdout:
+                tee_stream.write(line)
+                sys.stderr.write(line)
                 sys.stderr.flush()
+
+        returncode = process.wait()
+
     except OSError as exc:
         log_error(configure_logging(), f"Failed to execute {' '.join(command)}", exc)
         detail = f"Failed to execute {' '.join(command)}"
@@ -142,15 +157,15 @@ def _run_subprocess(
         tee_stream.close()
 
     output = tee_stream.value
-    if completed.returncode == 0:
+    if returncode == 0:
         return Success(output)
 
-    detail = f"Command {' '.join(command)} exited with {completed.returncode}"
+    detail = f"Command {' '.join(command)} exited with {returncode}"
     return Failure(
         ExecutorError(
             detail=detail,
             command=tuple(command),
-            returncode=completed.returncode,
+            returncode=returncode,
             output=output,
         )
     )
