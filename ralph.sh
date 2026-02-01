@@ -37,6 +37,23 @@ error() {
     exit 1
 }
 
+# Display instructions for creating TaskMaster tasks
+show_task_creation_instructions() {
+    echo ""
+    echo "To create tasks with the prd skill, run your designated agent with this prompt:"
+    echo ""
+    cat <<'EOF'
+Use the prd skill to generate TaskMaster tasks.json for this repo.
+Requirements:
+- Output must be TaskMaster format with tasks[] and metadata.
+- Include 3-7 small, actionable tasks with acceptance criteria.
+- Use IETF 2119 MUST/SHOULD/MAY in acceptance criteria.
+- Set metadata.project and metadata.branchName appropriately.
+EOF
+    echo ""
+    echo "Then re-run: ./ralph.sh --agent <amp|claude|codex> [max_iterations]"
+}
+
 # 1. Find git repository root
 find_git_root() {
     local dir="$PWD"
@@ -125,19 +142,7 @@ PY
 TASKS_FILE="$TASKMASTER_DIR/tasks/tasks.json"
 if [[ ! -f "$TASKS_FILE" ]]; then
     warn "TaskMaster tasks.json not found; nothing to do."
-    echo ""
-    echo "To create tasks with the prd skill, run your designated agent with this prompt:"
-    echo ""
-    cat <<'EOF'
-Use the prd skill to generate TaskMaster tasks.json for this repo.
-Requirements:
-- Output must be TaskMaster format with tasks[] and metadata.
-- Include 3-7 small, actionable tasks with acceptance criteria.
-- Use IETF 2119 MUST/SHOULD/MAY in acceptance criteria.
-- Set metadata.project and metadata.branchName appropriately.
-EOF
-    echo ""
-    echo "Then re-run: ./ralph.sh --agent <amp|claude|codex> [max_iterations]"
+    show_task_creation_instructions
     exit 1
 fi
 
@@ -158,19 +163,7 @@ PY
 TASKS_CHECK_EXIT=$?
 if [[ $TASKS_CHECK_EXIT -ne 0 ]]; then
     warn "TaskMaster tasks.json is empty or invalid; nothing to do."
-    echo ""
-    echo "To create tasks with the prd skill, run your designated agent with this prompt:"
-    echo ""
-    cat <<'EOF'
-Use the prd skill to generate TaskMaster tasks.json for this repo.
-Requirements:
-- Output must be TaskMaster format with tasks[] and metadata.
-- Include 3-7 small, actionable tasks with acceptance criteria.
-- Use IETF 2119 MUST/SHOULD/MAY in acceptance criteria.
-- Set metadata.project and metadata.branchName appropriately.
-EOF
-    echo ""
-    echo "Then re-run: ./ralph.sh --agent <amp|claude|codex> [max_iterations]"
+    show_task_creation_instructions
     exit 1
 fi
 
