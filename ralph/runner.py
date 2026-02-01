@@ -9,7 +9,13 @@ from typing import TypeVar
 from returns.result import Failure, Result
 
 from ralph.config import RalphConfig
-from ralph.executors import AmpExecutor, ClaudeExecutor, CodexExecutor, ToolExecutor
+from ralph.executors import (
+    AmpExecutor,
+    ClaudeExecutor,
+    CodexExecutor,
+    OpenCodeExecutor,
+    ToolExecutor,
+)
 from ralph.logging_utils import (
     configure_logging,
     log_error,
@@ -50,6 +56,13 @@ def _build_executor(tool: str, config: RalphConfig) -> ToolExecutor:
             return ClaudeExecutor(prompt_path=CLAUDE_PROMPT_FILE, working_dir=WORKING_DIR)
         case "codex":
             return CodexExecutor(config=config, working_dir=WORKING_DIR)
+        case "opencode":
+            return OpenCodeExecutor(
+                prompt_path=PROMPT_FILE,
+                working_dir=WORKING_DIR,
+                model=config.opencode_model,
+                extra_args=config.opencode_extra_args,
+            )
     raise ValueError(f"Unsupported tool requested: {tool}")
 
 

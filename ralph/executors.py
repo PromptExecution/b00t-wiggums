@@ -245,10 +245,37 @@ class CodexExecutor:
         return _run_subprocess(tuple(command), cwd=self.working_dir, env=env_vars)
 
 
+@dataclass(frozen=True, slots=True)
+class OpenCodeExecutor:
+    """Executor for OpenCode CLI agent."""
+
+    prompt_path: Path
+    working_dir: Path | None = None
+    model: str = "gpt-4"
+    extra_args: str = ""
+
+    def run(self) -> Result[str, Exception]:
+        prompt_result = _read_prompt(self.prompt_path)
+        match prompt_result:
+            case Success(prompt_text):
+                pass
+            case Failure(error):
+                return Failure(error)
+
+        cwd_value = self.working_dir or self.prompt_path.parent
+        command: list[str] = ["opencode", "--model", self.model]
+
+        if self.extra_args:
+            command.extend(self.extra_args.split())
+
+        return _run_subprocess(tuple(command), input_text=prompt_text, cwd=cwd_value)
+
+
 __all__ = [
     "AmpExecutor",
     "ClaudeExecutor",
     "CodexExecutor",
     "ExecutorError",
+    "OpenCodeExecutor",
     "ToolExecutor",
 ]

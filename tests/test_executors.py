@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from returns.result import Failure, Success
@@ -103,12 +103,16 @@ def test_codex_executor_with_extra_args(tmp_path: Path) -> None:
     """Test CodexExecutor with CODEX_EXTRA_ARGS."""
     config = RalphConfig(
         tool="codex",
+        use_mcp=False,
+        taskmaster_url=None,
         codex_prompt_file=Path("CLAUDE.md"),
         codex_model="gpt-4o",
         codex_reasoning_effort="high",
         codex_sandbox="workspace-write",
         codex_full_auto=True,
         codex_extra_args="--verbose --debug",
+        opencode_model="gpt-4",
+        opencode_extra_args="",
     )
     executor = CodexExecutor(config=config, working_dir=tmp_path)
 
