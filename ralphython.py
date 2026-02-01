@@ -27,28 +27,15 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 LOGGER = logging.getLogger("ralph")
 
 
-def _warn_tool_deprecated() -> None:
-    LOGGER.warning("⚠️  Warning: --tool is deprecated, use --agent instead")
-
-
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="ralph.sh",
         description="Ralph Wiggum - Long-running AI agent loop",
     )
-    parser.add_argument("--agent", choices=("amp", "claude", "codex", "opencode"))
-    parser.add_argument("--tool", choices=("amp", "claude", "codex", "opencode"), help=argparse.SUPPRESS)
+    parser.add_argument("--agent", choices=("amp", "claude", "codex", "opencode"), required=True)
     parser.add_argument("max_iterations", nargs="?", type=int, default=10)
 
     args = parser.parse_args(argv)
-
-    if args.tool:
-        _warn_tool_deprecated()
-        if not args.agent:
-            args.agent = args.tool
-
-    if not args.agent:
-        parser.error("--agent is required. Use --agent amp|claude|codex|opencode.")
 
     return args
 
@@ -88,13 +75,16 @@ def _run_and_capture(cmd: list[str], stdin_path: Path | None = None) -> str:
             stdin.close()
 
 
-def main(argv: list[str]) -> int:
+def main(argv: list[str] | None = None) -> int:
     """
     Ralph runtime execution.
 
     Note: Preflight checks (uv sync, .taskmaster setup, .gitignore) are handled
     by ralph.sh wrapper. This function focuses on execution only.
     """
+    if argv is None:
+        argv = sys.argv[1:]
+
     args = _parse_args(argv)
 
     script_dir = Path(__file__).resolve().parent

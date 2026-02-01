@@ -1,8 +1,8 @@
 # Ralph Python CLI justfile commands
 
-# Run ralph with specified tool and iterations (default: amp, 10 iterations)
-ralph TOOL='amp' ITERATIONS='10':
-    uv run ralph --tool {{TOOL}} {{ITERATIONS}}
+# Run ralph with specified agent and iterations (10 iterations default)
+ralph TOOL ITERATIONS='10':
+    uv run ralph --agent {{TOOL}} {{ITERATIONS}}
 
 # Run ralph tests
 ralph-test:
@@ -22,12 +22,12 @@ ralph-all: ralph-format ralph-check ralph-test
 
 # Run ralph with amp tool
 ralph-amp ITERATIONS='10':
-    uv run ralph --tool amp {{ITERATIONS}}
+    uv run ralph --agent amp {{ITERATIONS}}
 
 # Run ralph with claude tool
 ralph-claude ITERATIONS='10':
-    uv run ralph --tool claude {{ITERATIONS}}
+    uv run ralph --agent claude {{ITERATIONS}}
 
 # Run ralph with codex tool
 ralph-codex ITERATIONS='10':
-    uv run ralph --tool codex {{ITERATIONS}}
+    uv run ralph --agent codex {{ITERATIONS}}

@@ -20,14 +20,14 @@ ralph --help
 ### Basic Usage
 
 ```bash
-# Run with amp (default) for 10 iterations (default)
-uv run ralph
+# Run with amp for 10 iterations (default)
+uv run ralph --agent amp
 
 # Run with claude for 5 iterations
-uv run ralph --tool claude 5
+uv run ralph --agent claude 5
 
 # Run with codex for 20 iterations
-uv run ralph --tool codex 20
+uv run ralph --agent codex 20
 ```
 
 ### Using justfile Commands
@@ -35,30 +35,30 @@ uv run ralph --tool codex 20
 The project includes convenient `just` commands:
 
 ```bash
-# Run ralph with amp (default)
-just ralph
+# Run ralph with amp
+just ralph-amp
 
-# Run with specific tool
+# Run with specific agent
 just ralph-claude
 just ralph-codex
 just ralph-amp
 
-# Custom tool and iterations
-just ralph claude 15
+# Custom agent and iterations
+just ralph TOOL=claude ITERATIONS=15
 ```
 
 ### Command-Line Options
 
 ```
-usage: ralph [-h] [--tool {amp,claude,codex}] [--version] [max_iterations]
+usage: ralph [-h] --agent {amp,claude,codex,opencode} [--version] [max_iterations]
 
 positional arguments:
   max_iterations        Maximum iterations to run (default: 10)
 
 options:
   -h, --help            show this help message and exit
-  --tool {amp,claude,codex}
-                        Tool to run (default: amp)
+  --agent {amp,claude,codex,opencode}
+                        Agent to run (required)
   --version             show program's version number and exit
 ```
 
@@ -105,7 +105,7 @@ Ralph supports the following environment variables for configuration:
 export CODEX_MODEL="gpt-4-turbo"
 export CODEX_REASONING_EFFORT="medium"
 export CODEX_FULL_AUTO="false"
-uv run ralph --tool codex 15
+uv run ralph --agent codex 15
 ```
 
 ## Migration from Bash Version
@@ -127,14 +127,14 @@ The original `ralph.sh` is still available for backwards compatibility but is de
 ./ralph.sh --agent amp 10
 
 # New way (recommended)
-uv run ralph --tool amp 10
+uv run ralph --agent amp 10
 ```
 
 **Note**: The bash version now delegates to the Python version internally.
 
 ### Breaking Changes
 
-- CLI flag changed: `--agent` → `--tool`
+- CLI flag changed: `--tool` → `--agent` (required)
 - Tool execution uses Python subprocess instead of direct bash execution
 - Configuration is now centralized in `ralph/config.py`
 
@@ -143,7 +143,7 @@ uv run ralph --tool amp 10
 ```
 ralph/
 ├── __init__.py           # Package initialization
-├── ralph_cli.py          # CLI entry point and argument parsing
+├── ralphython.py         # CLI entry point and argument parsing
 ├── config.py             # Configuration management
 ├── executors.py          # Tool execution (amp, claude, codex)
 ├── file_manager.py       # PRD and progress file operations
@@ -263,7 +263,7 @@ uv run pytest tests/test_ralph_integration.py
 ### Example 1: Run amp for 5 iterations
 
 ```bash
-$ uv run ralph --tool amp 5
+$ uv run ralph --agent amp 5
 ℹ️ Configuration loaded: tool=amp, max_iterations=5
 ℹ️ ========== Iteration 1/5 ==========
 # ... amp output ...
@@ -277,7 +277,7 @@ $ uv run ralph --tool amp 5
 ```bash
 $ export CODEX_MODEL="gpt-4-turbo"
 $ export CODEX_REASONING_EFFORT="medium"
-$ uv run ralph --tool codex 10
+$ uv run ralph --agent codex 10
 ℹ️ Configuration loaded: tool=codex, max_iterations=10
 ℹ️ ========== Iteration 1/10 ==========
 # ... codex output ...
@@ -286,8 +286,8 @@ $ uv run ralph --tool codex 10
 ### Example 3: Using justfile
 
 ```bash
-$ just ralph claude 3
-uv run ralph --tool claude 3
+$ just ralph TOOL=claude ITERATIONS=3
+uv run ralph --agent claude 3
 ℹ️ Configuration loaded: tool=claude, max_iterations=3
 # ... claude output ...
 ```

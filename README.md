@@ -117,17 +117,17 @@ This creates `prd.json` with user stories structured for autonomous execution.
 **Python Version (Recommended)**:
 
 ```bash
-# Using Amp (default)
-uv run ralph [max_iterations]
+# Using Amp
+uv run ralph --agent amp [max_iterations]
 
 # Using Claude Code
-uv run ralph --tool claude [max_iterations]
+uv run ralph --agent claude [max_iterations]
 
 # Using Codex
-uv run ralph --tool codex [max_iterations]
+uv run ralph --agent codex [max_iterations]
 
 # Or use justfile commands
-just ralph          # Run with amp (default)
+just ralph TOOL=amp # Run with specified agent
 just ralph-claude   # Run with claude
 just ralph-codex    # Run with codex
 ```
@@ -135,14 +135,14 @@ just ralph-codex    # Run with codex
 **Bash Version (Deprecated)**:
 
 ```bash
-# Using Amp (default)
-./ralph.sh [max_iterations]
+# Using Amp
+./ralph.sh --agent amp [max_iterations]
 
 # Using Claude Code
-./ralph.sh --tool claude [max_iterations]
+./ralph.sh --agent claude [max_iterations]
 ```
 
-Default is 10 iterations. Use `--tool amp`, `--tool claude`, or `--tool codex` to select your AI coding tool.
+Default is 10 iterations. `--agent` is required (amp, claude, or codex).
 
 Ralph will:
 1. Create a feature branch (from PRD `branchName`)
@@ -168,8 +168,8 @@ Run tests:
 uv run pytest
 ```
 
-The pytest harness exercises the `ralphython` CLI end-to-end (argument parsing,
-deprecated `--tool` handling, and PRD ingestion) without invoking Amp, Claude,
+The pytest harness exercises the `ralphython` CLI end-to-end (argument parsing
+and loop setup) without invoking Amp, Claude,
 or Codex so you can validate behavior locally before handing off to agents.
 
 ## Key Files
@@ -283,7 +283,7 @@ Ralph automatically archives previous runs when you start a new feature (differe
 The Python version of Ralph maintains the same behavior as the bash version while adding benefits:
 
 ### What's the Same
-- Same command-line interface (just `--agent` → `--tool`)
+- Same command-line interface (now requiring `--agent`)
 - Same file structure (`prd.json`, `progress.txt`)
 - Same workflow (iterations, completion signal, archival)
 - Same tool support (amp, claude, codex)
@@ -318,7 +318,7 @@ The Python version of Ralph maintains the same behavior as the bash version whil
 
 ### Breaking Changes
 
-- CLI flag: `--agent` → `--tool`
+- CLI flag: `--tool` → `--agent` (required)
 - Python 3.11+ required (was: bash)
 - `uv` package manager required (was: none)
 
