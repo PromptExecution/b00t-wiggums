@@ -215,20 +215,20 @@ class MCPTaskMasterClient:
         # For now, raise NotImplementedError
         return Failure(NotImplementedError("MCP client not yet implemented"))
 
-    def get_task_by_id(self, task_id: str) -> Result[Task, Exception]:
+    def get_task_by_id(self, _task_id: str) -> Result[Task, Exception]:
         """Get a specific task by ID via MCP."""
         # TODO: Implement MCP client
         return Failure(NotImplementedError("MCP client not yet implemented"))
 
     def update_task_status(
-        self, task_id: str, status: str
+        self, _task_id: str, _status: str
     ) -> Result[None, Exception]:
         """Update task status via MCP."""
         # TODO: Implement MCP client
         return Failure(NotImplementedError("MCP client not yet implemented"))
 
     def add_task_note(
-        self, task_id: str, note: str
+        self, _task_id: str, _note: str
     ) -> Result[None, Exception]:
         """Add a timestamped note via MCP."""
         # TODO: Implement MCP client
@@ -243,7 +243,7 @@ class MCPTaskMasterClient:
 def create_client(
     prefer_mcp: bool = True,
     mcp_url: str | None = None,
-    tasks_file: Path | None = None,
+    _tasks_file: Path | None = None,
 ) -> TaskMasterClient:
     """
     Factory function to create appropriate TaskMaster client.
@@ -251,7 +251,7 @@ def create_client(
     Args:
         prefer_mcp: If True, try MCP first and fallback to CLI
         mcp_url: URL for MCP server (optional)
-        tasks_file: Deprecated - kept for compatibility, not used
+        _tasks_file: Deprecated - kept for compatibility, not used
 
     Returns:
         TaskMasterClient implementation (MCP or CLI-based)
