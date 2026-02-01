@@ -1,0 +1,178 @@
+{
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Integrate TaskMaster progress tracking into runner",
+      "description": "As a developer using Ralph's autonomous loop, I need the runner to integrate with TaskMaster for progress tracking, so that I can see real-time status of story completion without manually inspecting tasks.json.\n\nCurrently, runner.py operates independently without awareness of the task system. By integrating taskmaster_adapter, the runner can display helpful progress summaries like '3 done, 1 in progress, 4 pending' before and after iterations.\n\nImplementation approach: Import taskmaster_adapter's create_client() function. At the start of run_ralph(), create a TaskMasterClient using the config's use_mcp and taskmaster_url settings. Query taskmaster.get_all_tasks() to compute and display progress statistics. Maintain all existing completion detection logic (<promise>COMPLETE</promise> marker).\n\nThis provides better visibility into autonomous execution without changing Ralph's core iteration mechanics.",
+      "status": "done",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "runner.py imports taskmaster_adapter",
+        "Creates TaskMasterClient with hybrid mode support (MCP or file-based)",
+        "Displays task summary at start: 'X done, Y in progress, Z pending'",
+        "Displays final summary on completion",
+        "Maintains existing <promise>COMPLETE</promise> detection",
+        "Falls back gracefully if tasks.json unavailable"
+      ],
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": ["2026-02-01T11:30:00Z: Completed - Added TaskMaster integration with progress display"],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:30:00Z"
+    },
+    {
+      "id": "task-002",
+      "title": "Add OpenCode executor support",
+      "description": "As a developer working with multiple AI coding tools, I need Ralph to support OpenCode as a fourth executor option alongside amp, claude, and codex, so that I can leverage OpenCode's unique capabilities in my autonomous coding workflows.\n\nOpenCode has a different CLI interface than the other tools but follows similar execution patterns. We need to abstract it behind the same ToolExecutor protocol that makes Ralph's executor system pluggable.\n\nImplementation approach: In ralph/executors.py, create a frozen dataclass OpenCodeExecutor that follows the existing pattern. It should have prompt_path, working_dir, and model fields. The run() method should execute OpenCode's CLI (likely 'opencode --model {model} < {prompt_path}'), use the proven _TeeToStderr pattern for real-time output capture, and return Result[str, Exception].\n\nConfiguration comes from config.py's opencode_model and opencode_extra_args fields (already added). The _build_executor() function in runner.py needs a new match case for 'opencode'.\n\nThis enables users to run 'uv run ralph --tool opencode' just like the other executors.",
+      "status": "pending",
+      "priority": 2,
+      "acceptanceCriteria": [
+        "OpenCodeExecutor dataclass created with frozen=True, slots=True",
+        "Uses _TeeToStderr pattern for subprocess output",
+        "run() method returns Result[str, Exception]",
+        "Implicitly follows ToolExecutor protocol (duck typing)",
+        "Integrated into runner._build_executor() match statement",
+        "Uses config.opencode_model and config.opencode_extra_args",
+        "Test stub created at tests/tool_stubs/opencode"
+      ],
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:00:00Z"
+    },
+    {
+      "id": "task-003",
+      "title": "Refactor CLI with subcommands for better ergonomics",
+      "description": "As a developer invoking Ralph from the command line, I need a more discoverable and intuitive CLI interface with subcommands, so that I can easily check status, list stories, and run with specific options without memorizing complex flag combinations.\n\nThe current CLI (ralph --tool amp 10) works but doesn't scale well as we add features like TaskMaster integration, progress display, and dry-run mode. Modern CLI tools use subcommands (like 'git status', 'docker ps') which are more self-documenting.\n\nImplementation approach: Refactor ralph_cli.py to use argparse subparsers. Create three subcommands:\n- 'ralph run --tool {amp|claude|codex|opencode} [--max-iterations N] [--task-id TASK] [--dry-run] [--verbose]' - Execute the agent loop\n- 'ralph status' - Show current task status summary\n- 'ralph list-tasks [--filter {all|pending|in-progress|done}]' - List all stories\n\nAdd RawDescriptionHelpFormatter with examples in the epilog. Each subcommand should have its own help text. The 'run' subcommand is the most complex, accepting all current flags plus new ones for specific task execution and dry-run mode.\n\nThis dramatically improves discoverability - users can run 'ralph --help' to see available commands, then 'ralph run --help' for specific options.",
+      "status": "pending",
+      "priority": 3,
+      "acceptanceCriteria": [
+        "Subcommands: run, status, list-tasks",
+        "Flags: --tool, --max-iterations, --task-id, --dry-run, --verbose",
+        "OpenCode added to tool choices",
+        "Help text includes examples",
+        "Uses argparse subparsers"
+      ],
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:00:00Z"
+    },
+    {
+      "id": "task-004",
+      "title": "Add visual progress display with dependency trees",
+      "description": "As a developer watching Ralph execute autonomously, I need rich visual feedback about progress and task relationships, so that I can quickly understand what's been completed, what's in progress, what's blocked, and how stories depend on each other.\n\nCurrently, runner.py shows basic text output like '3 done, 1 in progress, 4 pending' which is functional but not visually engaging. When running long autonomous sessions, developers need to glance at the terminal and immediately grasp the state of the project.\n\nImplementation approach: Create ralph/progress_display.py with:\n1. ProgressStats dataclass (total_tasks, completed, in_progress, pending, blocked counts)\n2. display_progress_bar() - Shows Unicode box-drawing progress bar like: [████████░░░░] 66.7%\n3. display_task_tree() - Shows dependency tree with indentation showing parent/child relationships\n\nIntegrate into runner.py at iteration start and completion. Use Unicode characters (█ for filled, ░ for empty) for the progress bar. For the tree view, use box-drawing characters (├─, └─, │) to show hierarchical task dependencies.\n\nExample output:\n```\n==================================================\nProgress: [████████████░░░░░░░░] 60.0%\nCompleted: 3/5 | In Progress: 1 | Pending: 1 | Blocked: 0\n==================================================\n\nTask Tree:\n└─ task-001: ✓ TaskMaster integration [done]\n├─ task-002: ⚡ OpenCode executor [in-progress]\n└─ task-003: ○ CLI refactor [pending]\n    └─ (blocked by: task-002)\n```\n\nThis transforms terminal output from boring text to engaging visual feedback.",
+      "status": "pending",
+      "priority": 4,
+      "acceptanceCriteria": [
+        "ProgressStats dataclass created",
+        "display_progress_bar() function",
+        "display_task_tree() function",
+        "Uses Unicode box-drawing characters",
+        "Integrated into runner.py"
+      ],
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:00:00Z"
+    },
+    {
+      "id": "task-005",
+      "title": "Write comprehensive test suite",
+      "description": "Create tests for taskmaster_adapter, OpenCodeExecutor, progress_display, and CLI subcommands. Maintain >90% coverage.",
+      "status": "pending",
+      "priority": 5,
+      "acceptanceCriteria": [
+        "tests/test_taskmaster_adapter.py created",
+        "tests/test_opencode_executor.py created",
+        "tests/test_progress_display.py created",
+        "tests/test_ralph_cli_subcommands.py created",
+        "tests/tool_stubs/opencode created",
+        "Coverage >90%",
+        "All tests pass"
+      ],
+      "dependsOn": ["task-001", "task-002", "task-003", "task-004"],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:00:00Z"
+    },
+    {
+      "id": "task-006",
+      "title": "Update documentation",
+      "description": "Update README.md, ralph/README.md, and README-MCP.md to document TaskMaster integration, new CLI commands, and OpenCode support.",
+      "status": "pending",
+      "priority": 6,
+      "acceptanceCriteria": [
+        "README.md updated with TaskMaster info",
+        "ralph/README.md updated with architecture changes",
+        "README-MCP.md updated with TaskMaster MCP setup",
+        "Examples show new CLI usage",
+        "Migration guide from old prd.json format"
+      ],
+      "dependsOn": ["task-001", "task-002", "task-003", "task-004"],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:00:00Z"
+    },
+    {
+      "id": "task-007",
+      "title": "Update justfile with new commands",
+      "description": "Add justfile commands for TaskMaster operations: ralph-tasks, ralph-status, ralph-opencode, ralph-mcp, ralph-dry-run.",
+      "status": "pending",
+      "priority": 7,
+      "acceptanceCriteria": [
+        "ralph-tasks command added",
+        "ralph-status command added",
+        "ralph-opencode command added",
+        "ralph-mcp command added",
+        "ralph-dry-run command added",
+        "All commands documented"
+      ],
+      "dependsOn": ["task-003"],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:00:00Z"
+    },
+    {
+      "id": "task-008",
+      "title": "Update skills for TaskMaster format",
+      "description": "Modify skills/prd/SKILL.md and skills/ralph/SKILL.md to generate and accept TaskMaster JSON format instead of old PRD format.",
+      "status": "pending",
+      "priority": 8,
+      "acceptanceCriteria": [
+        "skills/prd/SKILL.md outputs tasks.json format",
+        "skills/ralph/SKILL.md accepts tasks.json format",
+        "Both skills validate against schema",
+        "Dependency tracking questions added",
+        "Examples updated"
+      ],
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-01T11:00:00Z",
+      "updatedAt": "2026-02-01T11:00:00Z"
+    }
+  ],
+  "metadata": {
+    "project": "b00t-wiggums TaskMaster Integration",
+    "branchName": "ralph/python-rewrite",
+    "description": "Integrate TaskMaster-AI task management, OpenCode executor support, and enhanced CLI ergonomics into b00t-wiggums Ralph agent system.",
+    "taskMasterVersion": "1.0",
+    "createdAt": "2026-02-01T11:00:00Z",
+    "updatedAt": "2026-02-01T11:00:00Z"
+  }
+}

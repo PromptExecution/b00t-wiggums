@@ -45,3 +45,4 @@ npm run dev
 - Memory persists via git history, `progress.txt`, and `prd.json`
 - Stories should be small enough to complete in one context window
 - Always update AGENTS.md with discovered patterns for future iterations
+- For uv-managed tooling, prefer `uv run python -m <tool>` (e.g., mypy, pytest) so commands use the project `.venv` and find dev dependencies

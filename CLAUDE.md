@@ -2,18 +2,30 @@
 
 You are an autonomous coding agent working on a software project.
 
+## Understanding Stories vs Tasks
+
+**IMPORTANT**: Each item in `tasks.json` should be written as a **user story** with rich context, not a bare task instruction. Stories provide narrative context that produces better results:
+
+- ✅ **Good (Story)**: "As a developer using Ralph, I need the CLI to support OpenCode as a fourth executor option, so that I can leverage OpenCode's capabilities alongside amp/claude/codex. The implementation should follow the same pattern as existing executors, using the _TeeToStderr pattern for output capture and integrating with the config system."
+
+- ❌ **Bad (Task)**: "Add OpenCode executor"
+
+Stories answer: **Who** needs it, **what** they need, **why** they need it, and **how** it should work. This context helps you understand the full picture and make better implementation decisions.
+
 ## Your Task
 
-1. Read the PRD at `prd.json` (in the same directory as this file)
+1. Read the story list at `tasks.json` (in the same directory as this file)
+   - Each "task" entry should be written as a user story with context
 2. Read the progress log at `progress.txt` (check Codebase Patterns section first)
-3. Check you're on the correct branch from PRD `branchName`. If not, check it out or create from main.
-4. Pick the **highest priority** user story where `passes: false`
-5. Implement that single user story
-6. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
-7. Update CLAUDE.md files if you discover reusable patterns (see below)
-8. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
-9. Update the PRD to set `passes: true` for the completed story
-10. Append your progress to `progress.txt`
+3. Check you're on the correct branch from tasks.json `metadata.branchName`. If not, check it out or create from main.
+4. Pick the **highest priority** story where `status: "pending"` and not blocked (empty `blockedBy` array)
+5. Set story status to `"in-progress"` before starting work
+6. Implement that single story, using the contextual information provided
+7. Run quality checks (e.g., typecheck, lint, test - use whatever your project requires)
+8. Update CLAUDE.md files if you discover reusable patterns (see below)
+9. If checks pass, commit ALL changes with message: `feat: [Story ID] - [Story Title]`
+10. Update the story status to `"done"` for the completed story
+11. Append your progress to `progress.txt`
 
 ## Progress Report Format
 
@@ -89,12 +101,23 @@ If no browser tools are available, note in your progress report that manual brow
 
 ## Stop Condition
 
-After completing a user story, check if ALL stories have `passes: true`.
+After completing a story, check if ALL stories have `status: "done"`.
 
-If ALL stories are complete and passing, reply with:
+If ALL stories are complete, reply with:
 <promise>COMPLETE</promise>
 
-If there are still stories with `passes: false`, end your response normally (another iteration will pick up the next story).
+If there are still stories with `status: "pending"` or `status: "in-progress"`, end your response normally (another iteration will pick up the next story).
+
+## Writing New Stories
+
+When creating new stories in tasks.json, always write them with full narrative context:
+- **As a** [role/persona]
+- **I need** [capability/feature]
+- **So that** [business value/outcome]
+- **Implementation approach**: [technical context, patterns to follow, constraints]
+- **Acceptance criteria**: [specific, testable conditions]
+
+This story format provides the cognitive context needed for high-quality autonomous implementation.
 
 ## Important
 

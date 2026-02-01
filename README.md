@@ -2,6 +2,8 @@
 
 ![Ralph](ralph.webp)
 
+[![Ralph Python CI](https://github.com/promptexecution/b00t-wiggums/actions/workflows/python-ci.yml/badge.svg?branch=ralph/python-rewrite)](https://github.com/promptexecution/b00t-wiggums/actions/workflows/python-ci.yml)
+
 Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), or [Codex](https://codex.anthropic.com)) repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
 
 **Python Rewrite**: Ralph has been rewritten in Python for improved maintainability, testability, and type safety. See [ralph/README.md](ralph/README.md) for Python-specific documentation.

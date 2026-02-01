@@ -1,4 +1,7 @@
 # Ralph Progress Log
+## Codebase Patterns
+- Use `uv run python -m <tool>` (mypy, pytest, etc.) so commands run inside the project `.venv` and find dev dependencies
+
 Started: 2026-01-31 21:56:53.522243
 ---
 ## 2026-01-31 22:01:37 - US-004
@@ -180,4 +183,13 @@ Started: 2026-01-31 21:56:53.522243
   - Implementation: Troubleshooting section addresses common Python/uv issues
   - Implementation: Examples section shows all three tools (amp, claude, codex)
   - Context: Documentation is complete and ready for users to migrate
+---
+## 2026-01-31 21:33 UTC - US-013
+- Added GitHub Actions workflow (python-ci) that installs uv, runs ruff, mypy --strict, and pytest with coverage artifact upload
+- Added README status badge for the new workflow and updated prd.json to mark the story complete
+- Files changed: .github/workflows/python-ci.yml, README.md, prd.json
+- **Learnings for future iterations:**
+  - Pattern: Prefer `uv run python -m mypy`/`python -m pytest` to ensure the project .venv is used (direct `uv run mypy` may miss the binary)
+  - Pattern: When running pytest with coverage, invoke via `python -m pytest --cov ...` so plugins inside .venv are discovered reliably
+  - Gotcha: GitHub Actions needs `uv sync --frozen --dev` before invoking tooling to hydrate dev dependencies
 ---
