@@ -16,10 +16,6 @@ class RalphConfig:
     # Tool selection
     tool: str  # amp, claude, codex, or opencode
 
-    # TaskMaster configuration
-    use_mcp: bool
-    taskmaster_url: str | None
-
     # Codex-specific configuration
     codex_prompt_file: Path
     codex_model: str
@@ -28,9 +24,13 @@ class RalphConfig:
     codex_full_auto: bool
     codex_extra_args: str
 
+    # TaskMaster configuration
+    use_mcp: bool = False
+    taskmaster_url: str | None = None
+
     # OpenCode-specific configuration
-    opencode_model: str
-    opencode_extra_args: str
+    opencode_model: str = "gpt-4"
+    opencode_extra_args: str = ""
 
     @classmethod
     def from_env(cls, tool: str = "amp", use_mcp: bool = False) -> RalphConfig:
@@ -46,6 +46,6 @@ class RalphConfig:
             codex_sandbox=os.environ.get("CODEX_SANDBOX", "workspace-write"),
             codex_full_auto=os.environ.get("CODEX_FULL_AUTO", "true").lower() == "true",
             codex_extra_args=os.environ.get("CODEX_EXTRA_ARGS", ""),
-            opencode_model=os.environ.get("OPENCODE_MODEL", "gpt-4"),
-            opencode_extra_args=os.environ.get("OPENCODE_EXTRA_ARGS", ""),
+            opencode_model=os.environ.get("OPENCODE_MODEL", cls.opencode_model),
+            opencode_extra_args=os.environ.get("OPENCODE_EXTRA_ARGS", cls.opencode_extra_args),
         )

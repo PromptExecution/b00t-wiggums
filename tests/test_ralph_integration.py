@@ -47,7 +47,7 @@ def _prepare_workspace(workdir: Path) -> None:
 
     # Create minimal tasks.json
     (taskmaster_dir / "tasks" / "tasks.json").write_text(
-        '{"tasks": [], "metadata": {"project": "Test", "branchName": "test-branch", "taskMasterVersion": "1.0"}}',
+        '{"tasks": [{"id":"task-001","title":"Test task","description":"d","status":"pending","priority":1}], "metadata": {"project": "Test", "branchName": "test-branch", "taskMasterVersion": "1.0"}}',
         encoding="utf-8",
     )
 
@@ -81,7 +81,7 @@ def _run_cli(
 ) -> subprocess.CompletedProcess[str]:
     """Invoke the Ralph CLI in a subprocess for black-box verification."""
 
-    command = [sys.executable, "-m", "ralph.ralph_cli", *args]
+    command = [sys.executable, "-m", "ralph", *args]
     env = _build_env(env_overrides)
     return subprocess.run(
         command,
@@ -189,7 +189,7 @@ def test_help_flag() -> None:
     """Verify `ralph --help` exits successfully."""
 
     result = subprocess.run(
-        [sys.executable, "-m", "ralph.ralph_cli", "--help"],
+        [sys.executable, "-m", "ralph", "--help"],
         capture_output=True,
         text=True,
         timeout=10,
@@ -205,7 +205,7 @@ def test_version_flag() -> None:
     """Verify `ralph --version` reports the CLI version."""
 
     result = subprocess.run(
-        [sys.executable, "-m", "ralph.ralph_cli", "--version"],
+        [sys.executable, "-m", "ralph", "--version"],
         capture_output=True,
         text=True,
         timeout=10,
