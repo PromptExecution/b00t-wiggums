@@ -3,6 +3,10 @@ prd.json
 progress.txt
 .last-branch
 
+# TaskMaster-AI task storage (managed by taskmaster-ai, not Ralph)
+.taskmaster/
+tasks.json
+
 # Archive is optional to commit
 # archive/
 

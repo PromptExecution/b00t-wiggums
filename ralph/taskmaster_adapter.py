@@ -1,8 +1,13 @@
-"""TaskMaster adapter - abstraction for task management via MCP or file-based."""
+"""TaskMaster adapter - abstraction for task management via MCP or CLI.
+
+IMPORTANT: This module NEVER accesses tasks.json directly.
+All task operations go through TaskMaster-AI's interface (MCP or CLI).
+"""
 
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -91,23 +96,25 @@ class TaskMasterClient(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
-class FileTaskMasterClient:
-    """File-based TaskMaster client - reads/writes tasks.json."""
+class CLITaskMasterClient:
+    """TaskMaster CLI client - uses taskmaster command-line tool.
 
-    tasks_file: Path
+    Respects separation of concerns: TaskMaster-AI owns task CRUD,
+    Ralph consumes via CLI interface.
+    """
 
     def get_next_task(self) -> Result[Task, Exception]:
-        """Get the next available task (highest priority pending task, not blocked)."""
+        """Get the next available task via taskmaster CLI."""
         tasks_result = self.get_all_tasks()
         if isinstance(tasks_result, Failure):
             return tasks_result
 
         tasks = tasks_result.unwrap()
 
-        # Filter for pending or in-progress tasks that aren't blocked
+        # Filter for pending tasks that aren't blocked
         available = [
             t for t in tasks
-            if t.status in ("pending", "in-progress") and not t.blocked_by
+            if t.status == "pending" and not t.blocked_by
         ]
 
         if not available:
@@ -119,81 +126,79 @@ class FileTaskMasterClient:
         return Success(available[0])
 
     def get_task_by_id(self, task_id: str) -> Result[Task, Exception]:
-        """Get a specific task by ID."""
-        tasks_result = self.get_all_tasks()
-        if isinstance(tasks_result, Failure):
-            return tasks_result
-
-        tasks = tasks_result.unwrap()
-        for task in tasks:
-            if task.id == task_id:
-                return Success(task)
-
-        return Failure(Exception(f"Task {task_id} not found"))
+        """Get a specific task by ID via CLI."""
+        try:
+            result = subprocess.run(
+                ["taskmaster", "get", task_id, "--format", "json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            task_data = json.loads(result.stdout)
+            return Success(Task.from_dict(task_data))
+        except subprocess.CalledProcessError as e:
+            return Failure(Exception(f"taskmaster get failed: {e.stderr}"))
+        except FileNotFoundError:
+            return Failure(Exception("taskmaster CLI not found"))
+        except Exception as exc:
+            return Failure(exc)
 
     def update_task_status(
         self, task_id: str, status: str
     ) -> Result[None, Exception]:
-        """Update task status."""
+        """Update task status via CLI."""
         try:
-            content = self.tasks_file.read_text()
-            data = json.loads(content)
-            tasks = data.get("tasks", [])
-
-            for task_dict in tasks:
-                if task_dict.get("id") == task_id:
-                    task_dict["status"] = status
-                    task_dict["updatedAt"] = datetime.now().isoformat()
-                    break
-            else:
-                return Failure(Exception(f"Task {task_id} not found"))
-
-            data["tasks"] = tasks
-            self.tasks_file.write_text(json.dumps(data, indent=2))
-
+            subprocess.run(
+                ["taskmaster", "update", task_id, "--status", status],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             return Success(None)
+        except subprocess.CalledProcessError as e:
+            return Failure(Exception(f"taskmaster update failed: {e.stderr}"))
+        except FileNotFoundError:
+            return Failure(Exception("taskmaster CLI not found"))
         except Exception as exc:
             return Failure(exc)
 
     def add_task_note(
         self, task_id: str, note: str
     ) -> Result[None, Exception]:
-        """Add a timestamped note to a task."""
+        """Add a timestamped note via CLI."""
         try:
-            content = self.tasks_file.read_text()
-            data = json.loads(content)
-            tasks = data.get("tasks", [])
-
-            for task_dict in tasks:
-                if task_dict.get("id") == task_id:
-                    notes = task_dict.get("notes", [])
-                    timestamped_note = f"{datetime.now().isoformat()}: {note}"
-                    notes.append(timestamped_note)
-                    task_dict["notes"] = notes
-                    task_dict["updatedAt"] = datetime.now().isoformat()
-                    break
-            else:
-                return Failure(Exception(f"Task {task_id} not found"))
-
-            data["tasks"] = tasks
-            self.tasks_file.write_text(json.dumps(data, indent=2))
-
+            timestamped_note = f"{datetime.now().isoformat()}: {note}"
+            subprocess.run(
+                ["taskmaster", "add-note", task_id, timestamped_note],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
             return Success(None)
+        except subprocess.CalledProcessError as e:
+            return Failure(Exception(f"taskmaster add-note failed: {e.stderr}"))
+        except FileNotFoundError:
+            return Failure(Exception("taskmaster CLI not found"))
         except Exception as exc:
             return Failure(exc)
 
     def get_all_tasks(self) -> Result[list[Task], Exception]:
-        """Get all tasks from tasks.json file."""
+        """Get all tasks via CLI."""
         try:
-            if not self.tasks_file.exists():
-                return Failure(Exception(f"Tasks file {self.tasks_file} not found"))
-
-            content = self.tasks_file.read_text()
-            data = json.loads(content)
+            result = subprocess.run(
+                ["taskmaster", "list", "--format", "json"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            data = json.loads(result.stdout)
             tasks_data = data.get("tasks", [])
-
             tasks = [Task.from_dict(t) for t in tasks_data]
             return Success(tasks)
+        except subprocess.CalledProcessError as e:
+            return Failure(Exception(f"taskmaster list failed: {e.stderr}"))
+        except FileNotFoundError:
+            return Failure(Exception("taskmaster CLI not found - install taskmaster-ai"))
         except Exception as exc:
             return Failure(exc)
 
@@ -244,16 +249,13 @@ def create_client(
     Factory function to create appropriate TaskMaster client.
 
     Args:
-        prefer_mcp: If True, try MCP first and fallback to file-based
+        prefer_mcp: If True, try MCP first and fallback to CLI
         mcp_url: URL for MCP server (optional)
-        tasks_file: Path to tasks.json file (defaults to ./tasks.json)
+        tasks_file: Deprecated - kept for compatibility, not used
 
     Returns:
-        TaskMasterClient implementation (MCP or file-based)
+        TaskMasterClient implementation (MCP or CLI-based)
     """
-    default_tasks_file = Path.cwd() / "tasks.json"
-    file_path = tasks_file or default_tasks_file
-
     if prefer_mcp:
         # Try MCP client first
         mcp_client = MCPTaskMasterClient(server_url=mcp_url)
@@ -262,29 +264,25 @@ def create_client(
         if isinstance(test_result, Success):
             return mcp_client
 
-        # MCP failed, fall back to file-based
-        return FileTaskMasterClient(tasks_file=file_path)
+        # MCP failed, fall back to CLI
+        return CLITaskMasterClient()
 
-    # User explicitly requested file-based mode
-    return FileTaskMasterClient(tasks_file=file_path)
+    # User explicitly requested CLI mode
+    return CLITaskMasterClient()
 
 
-def get_current_branch(tasks_file: Path | None = None) -> Maybe[str]:
-    """Get the configured branch name from TaskMaster metadata."""
-    target = tasks_file or Path.cwd() / "tasks.json"
-
+def get_current_branch() -> Maybe[str]:
+    """Get the configured branch name from TaskMaster CLI."""
     try:
-        if not target.exists():
-            return Nothing
-
-        content = target.read_text()
-        data = json.loads(content)
-        metadata = data.get("metadata", {})
-        branch = metadata.get("branchName")
-
-        if isinstance(branch, str) and branch:
+        result = subprocess.run(
+            ["taskmaster", "metadata", "--field", "branchName"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        branch = result.stdout.strip()
+        if branch:
             return Some(branch)
-
         return Nothing
     except Exception:
         return Nothing

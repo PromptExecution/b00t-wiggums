@@ -31,9 +31,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         prog="ralph.sh",
         description="Ralph Wiggum - Long-running AI agent loop",
     )
-    parser.add_argument("--agent", choices=("amp", "claude", "codex"))
-    parser.add_argument("--prd", help="Path to prd.json to ingest before running")
-    parser.add_argument("--tool", choices=("amp", "claude", "codex"), help=argparse.SUPPRESS)
+    parser.add_argument("--agent", choices=("amp", "claude", "codex", "opencode"))
+    parser.add_argument("--tool", choices=("amp", "claude", "codex", "opencode"), help=argparse.SUPPRESS)
     parser.add_argument("max_iterations", nargs="?", type=int, default=10)
 
     args = parser.parse_args(argv)
@@ -44,18 +43,9 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
             args.agent = args.tool
 
     if not args.agent:
-        parser.error("--agent is required. Use --agent amp|claude|codex.")
+        parser.error("--agent is required. Use --agent amp|claude|codex|opencode.")
 
     return args
-
-
-def _read_branch_name(prd_file: Path) -> str:
-    try:
-        data = json.loads(prd_file.read_text())
-    except Exception:
-        return ""
-    branch = data.get("branchName")
-    return branch or ""
 
 
 def _ensure_progress_file(progress_file: Path) -> None:
@@ -66,48 +56,6 @@ def _ensure_progress_file(progress_file: Path) -> None:
         f"Started: {_dt.datetime.now()}\n"
         "---\n"
     )
-
-
-def _archive_previous_run(
-    prd_file: Path, progress_file: Path, archive_dir: Path, last_branch_file: Path
-) -> None:
-    if not prd_file.exists() or not last_branch_file.exists():
-        return
-
-    current_branch = _read_branch_name(prd_file)
-    try:
-        last_branch = last_branch_file.read_text().strip()
-    except Exception:
-        last_branch = ""
-
-    if not current_branch or not last_branch or current_branch == last_branch:
-        return
-
-    date_str = _dt.date.today().isoformat()
-    folder_name = last_branch.removeprefix("ralph/")
-    archive_folder = archive_dir / f"{date_str}-{folder_name}"
-
-    print(f"Archiving previous run: {last_branch}")
-    archive_folder.mkdir(parents=True, exist_ok=True)
-    if prd_file.exists():
-        (archive_folder / prd_file.name).write_text(prd_file.read_text())
-    if progress_file.exists():
-        (archive_folder / progress_file.name).write_text(progress_file.read_text())
-    print(f"   Archived to: {archive_folder}")
-
-    progress_file.write_text(
-        "# Ralph Progress Log\n"
-        f"Started: {_dt.datetime.now()}\n"
-        "---\n"
-    )
-
-
-def _track_current_branch(prd_file: Path, last_branch_file: Path) -> None:
-    if not prd_file.exists():
-        return
-    current_branch = _read_branch_name(prd_file)
-    if current_branch:
-        last_branch_file.write_text(current_branch)
 
 
 def _run_and_capture(cmd: list[str], stdin_path: Path | None = None) -> str:
@@ -135,11 +83,57 @@ def _run_and_capture(cmd: list[str], stdin_path: Path | None = None) -> str:
             stdin.close()
 
 
+def _find_git_root(start_path: Path) -> Path | None:
+    """Find the git repository root directory."""
+    current = start_path.resolve()
+    while current != current.parent:
+        if (current / ".git").exists():
+            return current
+        current = current.parent
+    return None
+
+
+def _verify_taskmaster_setup(git_root: Path) -> tuple[bool, str]:
+    """
+    Verify .taskmaster directory exists and is properly gitignored.
+
+    Returns:
+        (success: bool, message: str)
+    """
+    taskmaster_dir = git_root / ".taskmaster"
+    gitignore_file = git_root / ".gitignore"
+
+    # Check .taskmaster exists
+    if not taskmaster_dir.exists():
+        return False, f"TaskMaster directory not found: {taskmaster_dir}\nRun 'taskmaster init' first."
+
+    # Check .gitignore exists and contains .taskmaster
+    if not gitignore_file.exists():
+        return False, f".gitignore not found at {gitignore_file}"
+
+    gitignore_content = gitignore_file.read_text()
+    if ".taskmaster" not in gitignore_content and ".taskmaster/" not in gitignore_content:
+        return False, f".taskmaster/ not in .gitignore\nAdd '.taskmaster/' to {gitignore_file} for safety."
+
+    return True, "TaskMaster setup verified ✓"
+
+
 def main(argv: list[str]) -> int:
     args = _parse_args(argv)
 
     script_dir = Path(__file__).resolve().parent
-    prd_file = script_dir / "prd.json"
+
+    # Preflight: Verify TaskMaster setup
+    git_root = _find_git_root(script_dir)
+    if not git_root:
+        print("Error: Not in a git repository", file=sys.stderr)
+        return 1
+
+    success, message = _verify_taskmaster_setup(git_root)
+    print(f"TaskMaster preflight: {message}", file=sys.stderr)
+    if not success:
+        return 1
+
     progress_file = script_dir / "progress.txt"
     archive_dir = script_dir / "archive"
     last_branch_file = script_dir / ".last-branch"
@@ -152,15 +146,7 @@ def main(argv: list[str]) -> int:
     codex_sandbox = os.environ.get("CODEX_SANDBOX", "workspace-write")
     codex_extra_args = os.environ.get("CODEX_EXTRA_ARGS", "")
 
-    if args.prd:
-        prd_src = Path(args.prd).expanduser()
-        if not prd_src.exists():
-            print(f"Error: PRD file not found: {prd_src}", file=sys.stderr)
-            return 1
-        prd_file.write_text(prd_src.read_text())
-
-    _archive_previous_run(prd_file, progress_file, archive_dir, last_branch_file)
-    _track_current_branch(prd_file, last_branch_file)
+    # Note: Removed PRD handling - TaskMaster-AI now owns task storage
     _ensure_progress_file(progress_file)
 
     print(f"Starting Ralph - Agent: {args.agent} - Max iterations: {args.max_iterations}")
@@ -228,27 +214,25 @@ def main(argv: list[str]) -> int:
 def run_ralph_iteration(
     agent: str = "codex",
     max_iterations: int = 1,
-    prd_path: str | None = None
 ) -> dict[str, str | int]:
     """
     Run Ralph autonomous agent for specified iterations.
-    
+
+    Note: Tasks are managed by TaskMaster-AI, not passed as parameters.
+
     Args:
-        agent: Agent to use (amp, claude, or codex)
+        agent: Agent to use (amp, claude, codex, or opencode)
         max_iterations: Maximum number of iterations to run
-        prd_path: Optional path to PRD JSON file
-        
+
     Returns:
-        Status dict with exit_code, output, and iterations_completed
+        Status dict with exit_code and iterations_completed
     """
     args = ["--agent", agent, str(max_iterations)]
-    if prd_path:
-        args.extend(["--prd", prd_path])
-    
+
     exit_code = main(args)
     script_dir = Path(__file__).parent
     progress_file = script_dir / "progress.txt"
-    
+
     return {
         "exit_code": exit_code,
         "status": "complete" if exit_code == 0 else "incomplete",
@@ -283,53 +267,64 @@ def get_ralph_status() -> dict[str, any]:
 
 
 @mcp.tool()
-def get_prd_status(prd_path: str | None = None) -> dict[str, any]:
+def get_task_status() -> dict[str, any]:
     """
-    Get PRD completion status.
-    
-    Args:
-        prd_path: Optional path to PRD file (defaults to ./prd.json)
-        
+    Get TaskMaster story completion status via CLI.
+
+    Note: This delegates to taskmaster-ai CLI, not direct file access.
+
     Returns:
-        Dict with PRD metadata and story completion status
+        Dict with task metadata and story completion status
     """
-    script_dir = Path(__file__).parent
-    prd_file = Path(prd_path) if prd_path else (script_dir / "prd.json")
-    
-    if not prd_file.exists():
-        return {"status": "not_found", "path": str(prd_file)}
-    
-    with open(prd_file) as f:
-        prd_data = json.load(f)
-    
-    total = len(prd_data["userStories"])
-    completed = sum(1 for story in prd_data["userStories"] if story.get("passes", False))
-    incomplete = [
-        {"id": s["id"], "title": s["title"]}
-        for s in prd_data["userStories"]
-        if not s.get("passes", False)
-    ]
-    
-    return {
-        "status": "loaded",
-        "project": prd_data.get("project", "Unknown"),
-        "total_stories": total,
-        "completed_stories": completed,
-        "completion_percentage": round((completed / total) * 100, 1) if total > 0 else 0,
-        "incomplete_stories": incomplete[:5],  # First 5 incomplete
-    }
+    try:
+        # Use taskmaster CLI to get status (respects separation of concerns)
+        result = subprocess.run(
+            ["taskmaster", "list", "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        task_data = json.loads(result.stdout)
+
+        total = len(task_data.get("tasks", []))
+        completed = sum(1 for t in task_data["tasks"] if t.get("status") == "done")
+        in_progress = sum(1 for t in task_data["tasks"] if t.get("status") == "in-progress")
+        pending = sum(1 for t in task_data["tasks"] if t.get("status") == "pending")
+
+        return {
+            "status": "loaded",
+            "project": task_data.get("metadata", {}).get("project", "Unknown"),
+            "total_tasks": total,
+            "completed": completed,
+            "in_progress": in_progress,
+            "pending": pending,
+            "completion_percentage": round((completed / total) * 100, 1) if total > 0 else 0,
+        }
+    except subprocess.CalledProcessError as e:
+        return {"status": "error", "message": f"taskmaster CLI error: {e}"}
+    except FileNotFoundError:
+        return {"status": "error", "message": "taskmaster CLI not found. Install taskmaster-ai first."}
 
 
-@mcp.resource("ralph://prd")
-def get_prd_resource() -> str:
-    """Get the current PRD as a resource."""
-    script_dir = Path(__file__).parent
-    prd_file = script_dir / "prd.json"
-    
-    if not prd_file.exists():
-        return "No PRD file found"
-    
-    return prd_file.read_text()
+@mcp.resource("ralph://tasks")
+def get_tasks_resource() -> str:
+    """
+    Get current tasks via TaskMaster CLI (not direct file access).
+
+    Returns task list as JSON string.
+    """
+    try:
+        result = subprocess.run(
+            ["taskmaster", "list", "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout
+    except subprocess.CalledProcessError:
+        return json.dumps({"error": "Failed to fetch tasks from taskmaster"})
+    except FileNotFoundError:
+        return json.dumps({"error": "taskmaster CLI not found"})
 
 
 @mcp.resource("ralph://progress")
