@@ -68,8 +68,6 @@ uv sync --quiet || error "uv sync failed (check permissions/network)."
 # 3. Check/initialize .taskmaster directory
 TASKMASTER_DIR="$GIT_ROOT/.taskmaster"
 TASKMASTER_MODEL="${RALPH_TASKMASTER_MODEL:-gpt-5-codex}"
-PROJECT_NAME="$(basename "$GIT_ROOT")"
-BRANCH_NAME="$(git rev-parse --abbrev-ref HEAD)"
 
 if [[ ! -d "$TASKMASTER_DIR" ]]; then
     warn ".taskmaster directory not found, initializing..."
