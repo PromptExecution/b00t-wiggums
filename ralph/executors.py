@@ -10,7 +10,7 @@ import sys
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Protocol, cast
+from typing import Protocol
 
 from returns.result import Failure, Result, Success
 

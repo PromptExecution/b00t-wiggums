@@ -14,7 +14,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-
 # Keep the MCP surface area close to the runtime implementation so there is
 # a single source of truth for "how Ralph runs".
 mcp = FastMCP("Ralph Wiggum 🎯")
