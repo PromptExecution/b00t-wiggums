@@ -88,60 +88,17 @@ def _run_and_capture(cmd: list[str], stdin_path: Path | None = None) -> str:
             stdin.close()
 
 
-def _find_git_root(start_path: Path) -> Path | None:
-    """Find the git repository root directory."""
-    current = start_path.resolve()
-    while current != current.parent:
-        if (current / ".git").exists():
-            return current
-        current = current.parent
-    return None
-
-
-def _verify_taskmaster_setup(git_root: Path) -> tuple[bool, str]:
-    """
-    Verify .taskmaster directory exists and is properly gitignored.
-
-    Returns:
-        (success: bool, message: str)
-    """
-    taskmaster_dir = git_root / ".taskmaster"
-    gitignore_file = git_root / ".gitignore"
-
-    # Check .taskmaster exists
-    if not taskmaster_dir.exists():
-        return False, f"TaskMaster directory not found: {taskmaster_dir}\nRun 'taskmaster init' first."
-
-    # Check .gitignore exists and contains .taskmaster
-    if not gitignore_file.exists():
-        return False, f".gitignore not found at {gitignore_file}"
-
-    gitignore_content = gitignore_file.read_text()
-    if ".taskmaster" not in gitignore_content and ".taskmaster/" not in gitignore_content:
-        return False, f".taskmaster/ not in .gitignore\nAdd '.taskmaster/' to {gitignore_file} for safety."
-
-    return True, "TaskMaster setup verified ✓"
-
-
 def main(argv: list[str]) -> int:
+    """
+    Ralph runtime execution.
+
+    Note: Preflight checks (uv sync, .taskmaster setup, .gitignore) are handled
+    by ralph.sh wrapper. This function focuses on execution only.
+    """
     args = _parse_args(argv)
 
     script_dir = Path(__file__).resolve().parent
-
-    # Preflight: Verify TaskMaster setup
-    git_root = _find_git_root(script_dir)
-    if not git_root:
-        print("Error: Not in a git repository", file=sys.stderr)
-        return 1
-
-    success, message = _verify_taskmaster_setup(git_root)
-    print(f"TaskMaster preflight: {message}", file=sys.stderr)
-    if not success:
-        return 1
-
     progress_file = script_dir / "progress.txt"
-    archive_dir = script_dir / "archive"
-    last_branch_file = script_dir / ".last-branch"
 
     _codex_prompt_file = Path(
         os.environ.get("CODEX_PROMPT_FILE", str(script_dir / "prompt.md"))
