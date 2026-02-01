@@ -5,11 +5,12 @@ description = "Ralph - Autonomous coding agent loop runner"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "fastmcp>=3.0.0b1",
     "returns>=0.23.0",
 ]
 
 [project.scripts]
-ralph = "ralph.ralph_cli:main"
+ralph = "ralph.entrypoint:main"
 
 [build-system]
 requires = ["hatchling"]

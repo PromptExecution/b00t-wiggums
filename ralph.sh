@@ -37,6 +37,23 @@ error() {
     exit 1
 }
 
+# Display instructions for creating TaskMaster tasks
+show_task_creation_instructions() {
+    echo ""
+    echo "To create tasks with the prd skill, run your designated agent with this prompt:"
+    echo ""
+    cat <<'EOF'
+Use the prd skill to generate TaskMaster tasks.json for this repo.
+Requirements:
+- Output must be TaskMaster format with tasks[] and metadata.
+- Include 3-7 small, actionable tasks with acceptance criteria.
+- Use IETF 2119 MUST/SHOULD/MAY in acceptance criteria.
+- Set metadata.project and metadata.branchName appropriately.
+EOF
+    echo ""
+    echo "Then re-run: ./ralph.sh --agent <amp|claude|codex> [max_iterations]"
+}
+
 # 1. Find git repository root
 find_git_root() {
     local dir="$PWD"
@@ -58,11 +75,16 @@ if ! command -v uv &> /dev/null; then
     error "uv not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
 fi
 
+# Prefer a repo-local uv cache to avoid permission issues in restricted sandboxes.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$GIT_ROOT/.uv-cache}"
+mkdir -p "$UV_CACHE_DIR"
+
 info "Syncing dependencies with uv..."
-uv sync --quiet || warn "uv sync had warnings (this may be normal)"
+uv sync --quiet || error "uv sync failed (check permissions/network)."
 
 # 3. Check/initialize .taskmaster directory
 TASKMASTER_DIR="$GIT_ROOT/.taskmaster"
+TASKMASTER_MODEL="${RALPH_TASKMASTER_MODEL:-gpt-5-codex}"
 
 if [[ ! -d "$TASKMASTER_DIR" ]]; then
     warn ".taskmaster directory not found, initializing..."
@@ -76,40 +98,74 @@ if [[ ! -d "$TASKMASTER_DIR" ]]; then
         warn "taskmaster CLI not found, creating basic structure"
         mkdir -p "$TASKMASTER_DIR/tasks"
 
-        # Create config.json
-        cat > "$TASKMASTER_DIR/config.json" <<EOF
-{
-  "version": "1.0",
-  "model": "claude-sonnet-4-5",
-  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-}
-EOF
-
         # If tasks.json exists in project root, move it to .taskmaster
         if [[ -f "$GIT_ROOT/tasks.json" ]]; then
             info "Moving tasks.json to .taskmaster/tasks/"
             mv "$GIT_ROOT/tasks.json" "$TASKMASTER_DIR/tasks/tasks.json"
-        else
-            # Create empty tasks.json
-            cat > "$TASKMASTER_DIR/tasks/tasks.json" <<EOF
-{
-  "tasks": [],
-  "metadata": {
-    "project": "$(basename "$GIT_ROOT")",
-    "branchName": "$(git rev-parse --abbrev-ref HEAD)",
-    "taskMasterVersion": "1.0",
-    "createdAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-    "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  }
-}
-EOF
         fi
 
-        info "Created .taskmaster directory structure"
+        info "Created .taskmaster directory structure (tasks bootstrap pending)"
     fi
 fi
 
-# 4. Verify .taskmaster is in .gitignore
+# 4. Ensure TaskMaster config is bootstrapped (idempotent)
+uv run python - <<PY
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+
+taskmaster_dir = Path("${TASKMASTER_DIR}")
+taskmaster_dir.mkdir(parents=True, exist_ok=True)
+(taskmaster_dir / "tasks").mkdir(exist_ok=True)
+
+config_path = taskmaster_dir / "config.json"
+model = "${TASKMASTER_MODEL}"
+now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+config = {"version": "1.0", "model": model, "created_at": now}
+if config_path.exists():
+    try:
+        config = json.loads(config_path.read_text())
+    except json.JSONDecodeError:
+        config = {"version": "1.0", "model": model, "created_at": now}
+
+if config.get("model") != model:
+    config["model"] = model
+if "created_at" not in config:
+    config["created_at"] = now
+config_path.write_text(json.dumps(config, indent=2) + "\n")
+PY
+
+# 5. Require TaskMaster tasks to exist before running
+TASKS_FILE="$TASKMASTER_DIR/tasks/tasks.json"
+if [[ ! -f "$TASKS_FILE" ]]; then
+    warn "TaskMaster tasks.json not found; nothing to do."
+    show_task_creation_instructions
+    exit 1
+fi
+
+uv run python - <<PY
+import json
+from pathlib import Path
+
+tasks_path = Path("$TASKS_FILE")
+try:
+    payload = json.loads(tasks_path.read_text())
+except json.JSONDecodeError:
+    raise SystemExit(2)
+
+tasks = payload.get("tasks") if isinstance(payload, dict) else None
+if not tasks:
+    raise SystemExit(3)
+PY
+TASKS_CHECK_EXIT=$?
+if [[ $TASKS_CHECK_EXIT -ne 0 ]]; then
+    warn "TaskMaster tasks.json is empty or invalid; nothing to do."
+    show_task_creation_instructions
+    exit 1
+fi
+
+# 6. Verify .taskmaster is in .gitignore
 GITIGNORE="$GIT_ROOT/.gitignore"
 
 if [[ ! -f "$GITIGNORE" ]]; then
@@ -128,14 +184,14 @@ else
     fi
 fi
 
-# 5. Verify .taskmaster is actually ignored by git
+# 7. Verify .taskmaster is actually ignored by git
 if git check-ignore "$TASKMASTER_DIR" > /dev/null 2>&1; then
     info "Preflight passed: .taskmaster is gitignored"
 else
     error ".taskmaster is NOT gitignored! Add '.taskmaster/' to .gitignore"
 fi
 
-# 6. All preflight checks passed, delegate to Python runtime
+# 8. All preflight checks passed, delegate to Python runtime
 info "Initialization complete, starting Ralph runtime..."
 echo ""
 
