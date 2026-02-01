@@ -6,7 +6,6 @@ import os
 import shutil
 import subprocess
 import sys
-import textwrap
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -33,15 +32,28 @@ def _should_run_real_tool(tool: str) -> bool:
 
 
 def _prepare_workspace(workdir: Path) -> None:
-    """Create the minimal files Ralph expects (prompt, CLAUDE, PRD)."""
+    """Create the minimal files Ralph expects (prompt files and .taskmaster structure)."""
 
     (workdir / "prompt.md").write_text("# Test\n\nSay hello and exit.\n", encoding="utf-8")
     (workdir / "CLAUDE.md").write_text(
         "# Test\n\nPrint '<promise>COMPLETE</promise>' immediately.\n",
         encoding="utf-8",
     )
-    (workdir / "prd.json").write_text(
-        '{"project": "Test", "branchName": "test-branch"}',
+
+    # Create TaskMaster structure (replaces prd.json)
+    taskmaster_dir = workdir / ".taskmaster"
+    taskmaster_dir.mkdir(exist_ok=True)
+    (taskmaster_dir / "tasks").mkdir(exist_ok=True)
+
+    # Create minimal tasks.json
+    (taskmaster_dir / "tasks" / "tasks.json").write_text(
+        '{"tasks": [], "metadata": {"project": "Test", "branchName": "test-branch", "taskMasterVersion": "1.0"}}',
+        encoding="utf-8",
+    )
+
+    # Create config.json
+    (taskmaster_dir / "config.json").write_text(
+        '{"version": "1.0", "model": "claude-sonnet-4-5"}',
         encoding="utf-8",
     )
 

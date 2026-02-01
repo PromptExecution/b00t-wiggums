@@ -64,12 +64,16 @@ options:
 
 ## How It Works
 
-1. **Initialization**: Ralph reads `prd.json` and `progress.txt` from the project root
-2. **Branch Detection**: Checks if git branch has changed since last run
-3. **Archival**: If branch changed, archives previous run to `archive/{date}-{branch-name}/`
-4. **Iteration Loop**: Runs the selected tool (amp/claude/codex) repeatedly
-5. **Completion Detection**: Monitors tool output for `<promise>COMPLETE</promise>` signal
-6. **Progress Tracking**: Updates `progress.txt` after each iteration
+1. **Initialization** (ralph.sh): Verifies git root, syncs dependencies with uv, initializes `.taskmaster/` directory structure
+2. **Task Management**: TaskMaster client (via MCP or CLI) tracks current task state and progress
+3. **Iteration Loop**: Runs the selected tool (amp/claude/codex/opencode) repeatedly
+4. **Completion Detection**: Monitors tool output for `<promise>COMPLETE</promise>` signal
+5. **Progress Tracking**: Updates `progress.txt` and task status via TaskMaster after each iteration
+
+**Architecture:**
+- `ralph.sh` (bash): Setup, preflight checks, environment initialization
+- `ralphython.py` (Python): Execution runtime only
+- TaskMaster-AI: Owns all task CRUD operations (stories stored in `.taskmaster/`)
 
 ## Supported Tools
 
