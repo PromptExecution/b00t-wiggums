@@ -58,8 +58,12 @@ if ! command -v uv &> /dev/null; then
     error "uv not found. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
 fi
 
+# Prefer a repo-local uv cache to avoid permission issues in restricted sandboxes.
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$GIT_ROOT/.uv-cache}"
+mkdir -p "$UV_CACHE_DIR"
+
 info "Syncing dependencies with uv..."
-uv sync --quiet || warn "uv sync had warnings (this may be normal)"
+uv sync --quiet || error "uv sync failed (check permissions/network)."
 
 # 3. Check/initialize .taskmaster directory
 TASKMASTER_DIR="$GIT_ROOT/.taskmaster"
@@ -90,7 +94,7 @@ if [[ ! -d "$TASKMASTER_DIR" ]]; then
 fi
 
 # 4. Ensure TaskMaster config is bootstrapped (idempotent)
-python3 - <<PY
+uv run python - <<PY
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -137,7 +141,7 @@ EOF
     exit 1
 fi
 
-python3 - <<PY
+uv run python - <<PY
 import json
 from pathlib import Path
 

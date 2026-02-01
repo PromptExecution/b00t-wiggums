@@ -13,7 +13,20 @@ async def test_ralph_mcp():
     # Start Ralph MCP server in background
     try:
         proc = subprocess.Popen(
-            ["uv", "run", "--script", "ralphython.py", "--mcp", "--transport", "http", "--port", "8766"],
+            [
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "ralph",
+                "--mcp",
+                "--transport",
+                "http",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8766",
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -39,22 +52,25 @@ async def test_ralph_mcp():
             async with Client("http://localhost:8766/mcp") as client:
                 print("✅ Connected to Ralph MCP server\n")
                 
-                # Test get_prd_status tool
-                print("📋 Testing get_prd_status tool...")
+                # Test get_task_status tool
+                print("📋 Testing get_task_status tool...")
                 try:
-                    result = await client.call_tool("get_prd_status", {})
+                    result = await client.call_tool("get_task_status", {})
                     if not isinstance(result, dict):
-                        print(f"   ❌ Unexpected PRD status response (not a dict): {result!r}\n")
-                    elif not all(key in result for key in ("project", "completed_stories", "total_stories", "completion_percentage")):
-                        print(f"   ❌ Incomplete PRD status response (missing keys): {result!r}\n")
+                        print(f"   ❌ Unexpected task status response (not a dict): {result!r}\n")
+                    elif not all(
+                        key in result
+                        for key in ("project", "completed", "total_tasks", "completion_percentage")
+                    ):
+                        print(f"   ❌ Incomplete task status response (missing keys): {result!r}\n")
                     else:
-                        print(f"   PRD Status: {result['project']}")
+                        print(f"   Project: {result['project']}")
                         print(
-                            f"   Completed: {result['completed_stories']}/{result['total_stories']} "
+                            f"   Completed: {result['completed']}/{result['total_tasks']} "
                             f"({result['completion_percentage']}%)\n"
                         )
                 except Exception as e:
-                    print(f"   ❌ get_prd_status tool call failed: {e}\n")
+                    print(f"   ❌ get_task_status tool call failed: {e}\n")
                 
                 # Test get_ralph_status tool
                 print("📊 Testing get_ralph_status tool...")
@@ -71,14 +87,14 @@ async def test_ralph_mcp():
                     print(f"   ❌ get_ralph_status tool call failed: {e}\n")
                 
                 # Test resources
-                print("📂 Testing ralph://prd resource...")
+                print("📂 Testing ralph://tasks resource...")
                 try:
                     resources = await client.list_resources()
-                    prd_resources = [r for r in resources if "prd" in r.uri]
-                    if prd_resources:
-                        print(f"   Found resource: {prd_resources[0].uri}\n")
+                    tasks_resources = [r for r in resources if "tasks" in r.uri]
+                    if tasks_resources:
+                        print(f"   Found resource: {tasks_resources[0].uri}\n")
                     else:
-                        print(f"   ⚠️  No PRD resources found\n")
+                        print("   ⚠️  No tasks resources found\n")
                 except Exception as e:
                     print(f"   ❌ list_resources call failed: {e}\n")
                 

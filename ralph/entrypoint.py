@@ -84,7 +84,30 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         prog="ralph",
         description="Ralph Wiggum - Long-running AI agent loop",
     )
-    parser.add_argument("--agent", choices=("amp", "claude", "codex", "opencode"), required=True)
+    parser.add_argument(
+        "--mcp",
+        action="store_true",
+        help="Run as an MCP server (ignores --agent/max_iterations)",
+    )
+    parser.add_argument(
+        "--transport",
+        choices=("stdio", "http"),
+        default="stdio",
+        help="MCP transport to use (default: stdio)",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="HTTP host when using --transport http (default: 127.0.0.1)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="HTTP port when using --transport http (default: 8000)",
+    )
+
+    parser.add_argument("--agent", choices=("amp", "claude", "codex", "opencode"))
     parser.add_argument("max_iterations", nargs="?", type=int, default=10)
     parser.add_argument(
         "--version",
@@ -92,7 +115,10 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         version=f"%(prog)s {__version__}",
     )
 
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if not args.mcp and not args.agent:
+        parser.error("--agent is required. Use --agent amp|claude|codex|opencode.")
+    return args
 
 
 def _ensure_progress_file(progress_file: Path) -> None:
@@ -142,6 +168,15 @@ def main(argv: list[str] | None = None) -> int:
 
     args = _parse_args(argv)
     root = _project_root()
+
+    if args.mcp:
+        # FastMCP consumes the transport + kwargs; we provide a stable CLI surface
+        # without relying on sys.argv surgery.
+        if args.transport == "http":
+            mcp.run(transport="http", host=args.host, port=args.port)
+        else:
+            mcp.run(transport="stdio")
+        return 0
 
     if not _require_tasks(root):
         return 1
