@@ -16,7 +16,7 @@ Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
 - Python 3.11+ with [uv](https://github.com/astral-sh/uv) package manager installed
 - One of the following AI coding tools installed and authenticated:
-  - [Amp CLI](https://ampcode.com) (default)
+  - [Amp CLI](https://ampcode.com)
   - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
   - [Codex](https://codex.anthropic.com)
 - A git repository for your project
@@ -153,6 +153,24 @@ Ralph will:
 6. Update `prd.json` to mark story as `passes: true`
 7. Append learnings to `progress.txt`
 8. Repeat until all stories pass or max iterations reached
+
+## Testing
+
+Install dev dependencies:
+
+```bash
+uv pip install -r requirements-dev.txt
+```
+
+Run tests:
+
+```bash
+uv run pytest
+```
+
+The pytest harness exercises the `ralphython` CLI end-to-end (argument parsing,
+deprecated `--tool` handling, and PRD ingestion) without invoking Amp, Claude,
+or Codex so you can validate behavior locally before handing off to agents.
 
 ## Key Files
 

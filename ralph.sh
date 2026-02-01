@@ -4,7 +4,17 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    TARGET="$(readlink "$SOURCE")"
+    if [[ "$TARGET" = /* ]]; then
+        SOURCE="$TARGET"
+    else
+        SOURCE="$DIR/$TARGET"
+    fi
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
 cd "$SCRIPT_DIR"
 
 exec uv run ralph "$@"

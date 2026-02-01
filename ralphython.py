@@ -9,21 +9,26 @@
 import argparse
 import datetime as _dt
 import json
+import logging
 import os
 import shlex
 import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from fastmcp import FastMCP
 
 # Initialize FastMCP server
 mcp = FastMCP("Ralph Wiggum 🎯")
 
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+LOGGER = logging.getLogger("ralph")
 
-def _warn_tool_deprecated():
-    print("⚠️  Warning: --tool is deprecated, use --agent instead", file=sys.stderr)
+
+def _warn_tool_deprecated() -> None:
+    LOGGER.warning("⚠️  Warning: --tool is deprecated, use --agent instead")
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -149,13 +154,17 @@ def main(argv: list[str]) -> int:
     # Note: Removed PRD handling - TaskMaster-AI now owns task storage
     _ensure_progress_file(progress_file)
 
-    print(f"Starting Ralph - Agent: {args.agent} - Max iterations: {args.max_iterations}")
+    LOGGER.info(
+        "Starting Ralph - Agent: %s - Max iterations: %s",
+        args.agent,
+        args.max_iterations,
+    )
 
     for i in range(1, args.max_iterations + 1):
-        print("")
-        print("===============================================================")
-        print(f"  Ralph Iteration {i} of {args.max_iterations} ({args.agent})")
-        print("===============================================================")
+        LOGGER.info("")
+        LOGGER.info("===============================================================")
+        LOGGER.info("  Ralph Iteration %s of %s (%s)", i, args.max_iterations, args.agent)
+        LOGGER.info("===============================================================")
 
         if args.agent == "amp":
             output = _run_and_capture(
@@ -194,19 +203,20 @@ def main(argv: list[str]) -> int:
             sys.stdout.write(output)
 
         if "<promise>COMPLETE</promise>" in output:
-            print("")
-            print("Ralph completed all tasks!")
-            print(f"Completed at iteration {i} of {args.max_iterations}")
+            LOGGER.info("")
+            LOGGER.info("Ralph completed all tasks!")
+            LOGGER.info("Completed at iteration %s of %s", i, args.max_iterations)
             return 0
 
-        print(f"Iteration {i} complete. Continuing...")
+        LOGGER.info("Iteration %s complete. Continuing...", i)
         time.sleep(2)
 
-    print("")
-    print(
-        f"Ralph reached max iterations ({args.max_iterations}) without completing all tasks."
+    LOGGER.info("")
+    LOGGER.info(
+        "Ralph reached max iterations (%s) without completing all tasks.",
+        args.max_iterations,
     )
-    print(f"Check {progress_file} for status.")
+    LOGGER.info("Check %s for status.", progress_file)
     return 1
 
 
@@ -242,7 +252,7 @@ def run_ralph_iteration(
 
 
 @mcp.tool()
-def get_ralph_status() -> dict[str, any]:
+def get_ralph_status() -> dict[str, Any]:
     """
     Get current Ralph execution status from progress.txt.
     
