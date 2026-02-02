@@ -47,7 +47,7 @@
       "id": "task-003",
       "title": "Refactor CLI with subcommands for better ergonomics",
       "description": "As a developer invoking Ralph from the command line, I need a more discoverable and intuitive CLI interface with subcommands, so that I can easily check status, list stories, and run with specific options without memorizing complex flag combinations.\n\nThe current CLI (ralph --tool amp 10) works but doesn't scale well as we add features like TaskMaster integration, progress display, and dry-run mode. Modern CLI tools use subcommands (like 'git status', 'docker ps') which are more self-documenting.\n\nImplementation approach: Refactor ralph_cli.py to use argparse subparsers. Create three subcommands:\n- 'ralph run --tool {amp|claude|codex|opencode} [--max-iterations N] [--task-id TASK] [--dry-run] [--verbose]' - Execute the agent loop\n- 'ralph status' - Show current task status summary\n- 'ralph list-tasks [--filter {all|pending|in-progress|done}]' - List all stories\n\nAdd RawDescriptionHelpFormatter with examples in the epilog. Each subcommand should have its own help text. The 'run' subcommand is the most complex, accepting all current flags plus new ones for specific task execution and dry-run mode.\n\nThis dramatically improves discoverability - users can run 'ralph --help' to see available commands, then 'ralph run --help' for specific options.",
-      "status": "pending",
+      "status": "done",
       "priority": 3,
       "acceptanceCriteria": [
         "Subcommands: run, status, list-tasks",

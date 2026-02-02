@@ -227,3 +227,29 @@ Started: 2026-01-31 21:56:53.522243
   - Context: Task was 90% complete - just needed CLI integration and test coverage
   - Context: All 72 tests passing (69 active + 3 skipped), 100% type checking passed
 ---
+## 2026-02-02 23:00:00 - task-003
+- Implemented CLI refactor with subcommands (run, status, list-tasks)
+- Added FileTaskMasterClient for direct tasks.json access (no external CLI dependency)
+- Updated taskmaster_adapter.py to support file-based operations (read/write tasks.json)
+- Refactored ralph_cli.py with argparse subparsers and RawDescriptionHelpFormatter
+- Added three subcommands with distinct functionality:
+  * run: Execute agent loop with --tool, --max-iterations, --task-id, --dry-run, --verbose
+  * status: Show visual progress summary using display_progress_summary()
+  * list-tasks: List tasks with --filter option
+- Updated all unit tests (tests/test_ralph_cli.py) to use new subcommand syntax
+- Updated integration tests (tests/test_ralph_integration.py) to use "run" subcommand
+- Files changed: ralph/ralph_cli.py, ralph/taskmaster_adapter.py, tests/test_ralph_cli.py, tests/test_ralph_integration.py, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: FileTaskMasterClient reads/writes tasks.json directly without external CLI dependency
+  - Pattern: create_client() factory defaults to file-based mode (prefer_mcp=False)
+  - Pattern: Subcommands use set_defaults(func=cmd_name) to dispatch to handler functions
+  - Pattern: Unused args parameters must be prefixed with underscore (_args) for ruff compliance
+  - Pattern: Type annotation result: int = args.func(args) needed for mypy strict mode
+  - Implementation: Help epilog uses triple-quoted string with Examples section
+  - Implementation: list-tasks displays tasks in table format with truncated titles
+  - Implementation: status subcommand leverages existing progress_display module
+  - Implementation: dry-run mode prints what would execute without running
+  - Context: CLI now much more discoverable - users can run ralph --help to see all commands
+  - Context: All 72 tests passing (69 active + 3 skipped), 100% type checking passed
+  - Gotcha: Integration tests needed updating from old ["--tool", "amp", "1"] to ["run", "--tool", "amp", "--max-iterations", "1"]
+---

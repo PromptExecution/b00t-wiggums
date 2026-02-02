@@ -100,7 +100,7 @@ def test_ralph_with_amp_can_start(tmp_path: Path) -> None:
     """Run Ralph with the real amp tool when available."""
 
     _prepare_workspace(tmp_path)
-    result = _run_cli(tmp_path, ["--tool", "amp", "1"], timeout=5)
+    result = _run_cli(tmp_path, ["run", "--tool", "amp", "--max-iterations", "1"], timeout=5)
     assert result.returncode in (0, 1)
 
 
@@ -112,7 +112,7 @@ def test_ralph_with_claude_can_start(tmp_path: Path) -> None:
     """Run Ralph with the real claude tool when available."""
 
     _prepare_workspace(tmp_path)
-    result = _run_cli(tmp_path, ["--tool", "claude", "1"], timeout=5)
+    result = _run_cli(tmp_path, ["run", "--tool", "claude", "--max-iterations", "1"], timeout=5)
     assert result.returncode in (0, 1)
 
 
@@ -125,7 +125,7 @@ def test_ralph_with_codex_can_start(tmp_path: Path) -> None:
 
     _prepare_workspace(tmp_path)
     env = {"CODEX_PROMPT_FILE": str(tmp_path / "CLAUDE.md")}
-    result = _run_cli(tmp_path, ["--tool", "codex", "1"], env_overrides=env, timeout=5)
+    result = _run_cli(tmp_path, ["run", "--tool", "codex", "--max-iterations", "1"], env_overrides=env, timeout=5)
     assert result.returncode in (0, 1)
 
 
@@ -134,7 +134,7 @@ def test_ralph_logs_iterations_and_creates_progress_file(tmp_path: Path) -> None
 
     _prepare_workspace(tmp_path)
     env = _install_fake_amp(tmp_path)
-    result = _run_cli(tmp_path, ["--tool", "amp", "1"], env_overrides=env, timeout=10)
+    result = _run_cli(tmp_path, ["run", "--tool", "amp", "--max-iterations", "1"], env_overrides=env, timeout=10)
 
     assert result.returncode == 0
     stderr = result.stderr
@@ -153,7 +153,7 @@ def test_progress_file_can_be_updated_after_cli_run(tmp_path: Path) -> None:
 
     _prepare_workspace(tmp_path)
     env = _install_fake_amp(tmp_path)
-    _run_cli(tmp_path, ["--tool", "amp", "1"], env_overrides=env, timeout=10)
+    _run_cli(tmp_path, ["run", "--tool", "amp", "--max-iterations", "1"], env_overrides=env, timeout=10)
 
     progress_path = _progress_path(tmp_path)
     result = append_to_progress("## Integration entry", progress_path)

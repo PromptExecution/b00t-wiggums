@@ -96,6 +96,122 @@ class TaskMasterClient(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class FileTaskMasterClient:
+    """File-based TaskMaster client - reads/writes tasks.json directly."""
+
+    tasks_file: Path = Path("tasks.json")
+
+    def get_next_task(self) -> Result[Task, Exception]:
+        """Get the next available task from tasks.json."""
+        tasks_result = self.get_all_tasks()
+        if isinstance(tasks_result, Failure):
+            return tasks_result
+
+        tasks = tasks_result.unwrap()
+
+        # Filter for pending tasks that aren't blocked
+        available = [
+            t for t in tasks
+            if t.status == "pending" and not t.blocked_by
+        ]
+
+        if not available:
+            return Failure(Exception("No available tasks"))
+
+        # Sort by priority (lowest number = highest priority)
+        available.sort(key=lambda t: t.priority)
+
+        return Success(available[0])
+
+    def get_task_by_id(self, task_id: str) -> Result[Task, Exception]:
+        """Get a specific task by ID from tasks.json."""
+        tasks_result = self.get_all_tasks()
+        if isinstance(tasks_result, Failure):
+            return tasks_result
+
+        tasks = tasks_result.unwrap()
+        for task in tasks:
+            if task.id == task_id:
+                return Success(task)
+
+        return Failure(Exception(f"Task {task_id} not found"))
+
+    def update_task_status(
+        self, task_id: str, status: str
+    ) -> Result[None, Exception]:
+        """Update task status in tasks.json."""
+        try:
+            # Read current data
+            data = json.loads(self.tasks_file.read_text())
+            tasks_data = data.get("tasks", [])
+
+            # Find and update task
+            found = False
+            for task_dict in tasks_data:
+                if task_dict.get("id") == task_id:
+                    task_dict["status"] = status
+                    task_dict["updatedAt"] = datetime.now().isoformat()
+                    found = True
+                    break
+
+            if not found:
+                return Failure(Exception(f"Task {task_id} not found"))
+
+            # Write back
+            data["tasks"] = tasks_data
+            self.tasks_file.write_text(json.dumps(data, indent=2) + "\n")
+            return Success(None)
+
+        except Exception as exc:
+            return Failure(exc)
+
+    def add_task_note(
+        self, task_id: str, note: str
+    ) -> Result[None, Exception]:
+        """Add a timestamped note to a task in tasks.json."""
+        try:
+            # Read current data
+            data = json.loads(self.tasks_file.read_text())
+            tasks_data = data.get("tasks", [])
+
+            # Find and update task
+            found = False
+            timestamped_note = f"{datetime.now().isoformat()}: {note}"
+            for task_dict in tasks_data:
+                if task_dict.get("id") == task_id:
+                    notes = task_dict.get("notes", [])
+                    notes.append(timestamped_note)
+                    task_dict["notes"] = notes
+                    task_dict["updatedAt"] = datetime.now().isoformat()
+                    found = True
+                    break
+
+            if not found:
+                return Failure(Exception(f"Task {task_id} not found"))
+
+            # Write back
+            data["tasks"] = tasks_data
+            self.tasks_file.write_text(json.dumps(data, indent=2) + "\n")
+            return Success(None)
+
+        except Exception as exc:
+            return Failure(exc)
+
+    def get_all_tasks(self) -> Result[list[Task], Exception]:
+        """Get all tasks from tasks.json."""
+        try:
+            if not self.tasks_file.exists():
+                return Failure(Exception(f"Tasks file not found: {self.tasks_file}"))
+
+            data = json.loads(self.tasks_file.read_text())
+            tasks_data = data.get("tasks", [])
+            tasks = [Task.from_dict(t) for t in tasks_data]
+            return Success(tasks)
+        except Exception as exc:
+            return Failure(exc)
+
+
+@dataclass(frozen=True, slots=True)
 class CLITaskMasterClient:
     """TaskMaster CLI client - uses taskmaster command-line tool.
 
@@ -215,20 +331,20 @@ class MCPTaskMasterClient:
         # For now, raise NotImplementedError
         return Failure(NotImplementedError("MCP client not yet implemented"))
 
-    def get_task_by_id(self, task_id: str) -> Result[Task, Exception]:
+    def get_task_by_id(self, _task_id: str) -> Result[Task, Exception]:
         """Get a specific task by ID via MCP."""
         # TODO: Implement MCP client
         return Failure(NotImplementedError("MCP client not yet implemented"))
 
     def update_task_status(
-        self, task_id: str, status: str
+        self, _task_id: str, _status: str
     ) -> Result[None, Exception]:
         """Update task status via MCP."""
         # TODO: Implement MCP client
         return Failure(NotImplementedError("MCP client not yet implemented"))
 
     def add_task_note(
-        self, task_id: str, note: str
+        self, _task_id: str, _note: str
     ) -> Result[None, Exception]:
         """Add a timestamped note via MCP."""
         # TODO: Implement MCP client
@@ -241,7 +357,7 @@ class MCPTaskMasterClient:
 
 
 def create_client(
-    prefer_mcp: bool = True,
+    prefer_mcp: bool = False,
     mcp_url: str | None = None,
     tasks_file: Path | None = None,
 ) -> TaskMasterClient:
@@ -249,12 +365,12 @@ def create_client(
     Factory function to create appropriate TaskMaster client.
 
     Args:
-        prefer_mcp: If True, try MCP first and fallback to CLI
+        prefer_mcp: If True, try MCP first and fallback to file-based
         mcp_url: URL for MCP server (optional)
-        tasks_file: Deprecated - kept for compatibility, not used
+        tasks_file: Path to tasks.json file (default: ./tasks.json)
 
     Returns:
-        TaskMasterClient implementation (MCP or CLI-based)
+        TaskMasterClient implementation (MCP, CLI, or file-based)
     """
     if prefer_mcp:
         # Try MCP client first
@@ -264,11 +380,11 @@ def create_client(
         if isinstance(test_result, Success):
             return mcp_client
 
-        # MCP failed, fall back to CLI
-        return CLITaskMasterClient()
+        # MCP failed, fall back to file-based
+        return FileTaskMasterClient(tasks_file=tasks_file or Path("tasks.json"))
 
-    # User explicitly requested CLI mode
-    return CLITaskMasterClient()
+    # Default to file-based client
+    return FileTaskMasterClient(tasks_file=tasks_file or Path("tasks.json"))
 
 
 def get_current_branch() -> Maybe[str]:
