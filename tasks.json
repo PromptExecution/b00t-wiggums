@@ -109,7 +109,7 @@
       "id": "task-006",
       "title": "Update documentation",
       "description": "Update README.md, ralph/README.md, and README-MCP.md to document TaskMaster integration, new CLI commands, and OpenCode support.",
-      "status": "pending",
+      "status": "in-progress",
       "priority": 6,
       "acceptanceCriteria": [
         "README.md updated with TaskMaster info",

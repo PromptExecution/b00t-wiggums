@@ -4,9 +4,9 @@
 
 [![Ralph Python CI](https://github.com/promptexecution/b00t-wiggums/actions/workflows/python-ci.yml/badge.svg?branch=ralph/python-rewrite)](https://github.com/promptexecution/b00t-wiggums/actions/workflows/python-ci.yml)
 
-Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), or [Codex](https://codex.anthropic.com)) repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+Ralph is an autonomous AI agent loop that runs AI coding tools ([Amp](https://ampcode.com), [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex](https://codex.anthropic.com), or [OpenCode](https://opencode.ai)) repeatedly until all task items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `tasks.json`.
 
-**Python Rewrite**: Ralph has been rewritten in Python for improved maintainability, testability, and type safety. See [ralph/README.md](ralph/README.md) for Python-specific documentation.
+**Python Rewrite**: Ralph has been rewritten in Python with TaskMaster integration for improved task management, visual progress tracking, and enhanced CLI ergonomics. See [ralph/README.md](ralph/README.md) for detailed documentation.
 
 Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
@@ -19,6 +19,7 @@ Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
   - [Amp CLI](https://ampcode.com) (default)
   - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`npm install -g @anthropic-ai/claude-code`)
   - [Codex](https://codex.anthropic.com)
+  - [OpenCode](https://opencode.ai) (optional, fourth executor choice)
 - A git repository for your project
 
 ## Setup
@@ -102,34 +103,45 @@ Load the prd skill and create a PRD for [your feature description]
 
 Answer the clarifying questions. The skill saves output to `tasks/prd-[feature-name].md`.
 
-### 2. Convert PRD to Ralph format
+### 2. Convert PRD to TaskMaster format
 
-Use the Ralph skill to convert the markdown PRD to JSON:
+Use the Ralph skill to convert the markdown PRD to TaskMaster JSON:
 
 ```
-Load the ralph skill and convert tasks/prd-[feature-name].md to prd.json
+Load the ralph skill and convert tasks/prd-[feature-name].md to tasks.json
 ```
 
-This creates `prd.json` with user stories structured for autonomous execution.
+This creates `tasks.json` with user stories structured for autonomous execution, including dependency tracking and status management.
 
 ### 3. Run Ralph
 
 **Python Version (Recommended)**:
 
 ```bash
-# Using Amp (default)
-uv run ralph [max_iterations]
+# Run with amp (default)
+uv run ralph run --tool amp --max-iterations 10
 
 # Using Claude Code
-uv run ralph --tool claude [max_iterations]
+uv run ralph run --tool claude --max-iterations 5
 
 # Using Codex
-uv run ralph --tool codex [max_iterations]
+uv run ralph run --tool codex --max-iterations 20
+
+# Using OpenCode
+uv run ralph run --tool opencode --max-iterations 10
+
+# Check status
+uv run ralph status
+
+# List tasks
+uv run ralph list-tasks
+uv run ralph list-tasks --filter pending
 
 # Or use justfile commands
 just ralph          # Run with amp (default)
 just ralph-claude   # Run with claude
 just ralph-codex    # Run with codex
+just ralph-opencode # Run with opencode
 ```
 
 **Bash Version (Deprecated)**:
@@ -142,17 +154,19 @@ just ralph-codex    # Run with codex
 ./ralph.sh --tool claude [max_iterations]
 ```
 
-Default is 10 iterations. Use `--tool amp`, `--tool claude`, or `--tool codex` to select your AI coding tool.
+Default is 10 iterations. Use `--tool` to select your AI coding tool (amp, claude, codex, or opencode).
 
 Ralph will:
-1. Create a feature branch (from PRD `branchName`)
-2. Pick the highest priority story where `passes: false`
-3. Implement that single story
-4. Run quality checks (typecheck, tests)
-5. Commit if checks pass
-6. Update `prd.json` to mark story as `passes: true`
-7. Append learnings to `progress.txt`
-8. Repeat until all stories pass or max iterations reached
+1. Display visual progress with Unicode box-drawing characters
+2. Create a feature branch (from tasks.json `metadata.branchName`)
+3. Pick the highest priority story where `status: "pending"` and not blocked
+4. Set story status to `"in-progress"`
+5. Implement that single story
+6. Run quality checks (typecheck, tests)
+7. Commit if checks pass with message: `feat: [Story ID] - [Story Title]`
+8. Update story status to `"done"`
+9. Append learnings to `progress.txt`
+10. Repeat until all stories done or max iterations reached
 
 ## Key Files
 
@@ -162,13 +176,13 @@ Ralph will:
 | `ralph/README.md` | Detailed Python documentation |
 | `ralph.sh` | Bash wrapper (delegates to Python version) |
 | `prompt.md` | Prompt template for Amp |
-| `CLAUDE.md` | Prompt template for Claude Code and Codex |
-| `prd.json` | User stories with `passes` status (the task list) |
-| `prd.json.example` | Example PRD format for reference |
+| `CLAUDE.md` | Prompt template for Claude Code, Codex, and OpenCode |
+| `tasks.json` | User stories with status tracking (pending/in-progress/done) |
+| `prd.json.example` | Legacy PRD format (see migration guide below) |
 | `progress.txt` | Append-only learnings for future iterations |
 | `justfile` | Just commands for Ralph (ralph, ralph-test, ralph-check, etc.) |
 | `skills/prd/` | Skill for generating PRDs (works with Amp and Claude Code) |
-| `skills/ralph/` | Skill for converting PRDs to JSON (works with Amp and Claude Code) |
+| `skills/ralph/` | Skill for converting PRDs to TaskMaster JSON (works with Amp and Claude Code) |
 | `.claude-plugin/` | Plugin manifest for Claude Code marketplace discovery |
 | `flowchart/` | Interactive visualization of how Ralph works |
 
@@ -190,10 +204,10 @@ npm run dev
 
 ### Each Iteration = Fresh Context
 
-Each iteration spawns a **new AI instance** (Amp or Claude Code) with clean context. The only memory between iterations is:
+Each iteration spawns a **new AI instance** (Amp, Claude Code, Codex, or OpenCode) with clean context. The only memory between iterations is:
 - Git history (commits from previous iterations)
 - `progress.txt` (learnings and context)
-- `prd.json` (which stories are done)
+- `tasks.json` (which stories are done, in-progress, or pending)
 
 ### Small Tasks
 
@@ -230,17 +244,52 @@ Ralph only works if there are feedback loops:
 
 Frontend stories must include "Verify in browser using dev-browser skill" in acceptance criteria. Ralph will use the dev-browser skill to navigate to the page, interact with the UI, and confirm changes work.
 
+### Visual Progress Display
+
+Ralph now shows rich visual feedback with Unicode box-drawing characters:
+
+```
+==================================================
+Progress: [████████████░░░░░░░░] 60.0%
+Completed: 3/5 | In Progress: 1 | Pending: 1 | Blocked: 0
+==================================================
+
+Task Tree:
+└─ task-001: ✓ TaskMaster integration [done]
+├─ task-002: ⚡ OpenCode executor [in-progress]
+└─ task-003: ○ CLI refactor [pending]
+    └─ (blocked by: task-002)
+```
+
+Status icons:
+- ✓ = done
+- ⚡ = in-progress
+- ○ = pending
+- 👀 = review
+- ✗ = cancelled
+
 ### Stop Condition
 
-When all stories have `passes: true`, Ralph outputs `<promise>COMPLETE</promise>` and the loop exits.
+When all stories have `status: "done"`, Ralph outputs `<promise>COMPLETE</promise>` and the loop exits.
 
 ## Debugging
 
 Check current state:
 
 ```bash
-# See which stories are done
-cat prd.json | jq '.userStories[] | {id, title, passes}'
+# Use Ralph CLI to check status
+uv run ralph status
+
+# List all tasks
+uv run ralph list-tasks
+
+# Filter by status
+uv run ralph list-tasks --filter pending
+uv run ralph list-tasks --filter in-progress
+uv run ralph list-tasks --filter done
+
+# See which stories are done (manual)
+cat tasks.json | jq '.tasks[] | {id, title, status}'
 
 # See learnings from previous iterations
 cat progress.txt
@@ -305,6 +354,130 @@ The Python version of Ralph maintains the same behavior as the bash version whil
 - `uv` package manager required (was: none)
 
 See [ralph/README.md](ralph/README.md) for complete Python documentation.
+
+## TaskMaster Format Migration
+
+Ralph has migrated from `prd.json` format to TaskMaster's `tasks.json` format for better task management.
+
+### Key Differences
+
+**Old prd.json format:**
+```json
+{
+  "project": "MyApp",
+  "branchName": "feature/my-feature",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add feature X",
+      "passes": false,
+      "priority": 1
+    }
+  ]
+}
+```
+
+**New tasks.json format:**
+```json
+{
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Add feature X",
+      "description": "As a user, I need...",
+      "status": "pending",
+      "priority": 1,
+      "acceptanceCriteria": ["..."],
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": []
+    }
+  ],
+  "metadata": {
+    "project": "MyApp",
+    "branchName": "feature/my-feature"
+  }
+}
+```
+
+### New Features in TaskMaster Format
+
+1. **Status Tracking**: `status` field replaces `passes` with three states:
+   - `"pending"` - Not started
+   - `"in-progress"` - Currently being worked on
+   - `"done"` - Completed
+
+2. **Dependency Management**:
+   - `dependsOn: []` - Stories that must complete before this one
+   - `blockedBy: []` - Active blockers preventing work on this story
+
+3. **Rich Descriptions**: Story field contains full narrative context:
+   ```
+   "As a [role], I need [capability], so that [benefit].
+   Implementation approach: [technical details]
+   Acceptance criteria: [specific conditions]"
+   ```
+
+4. **Subtasks**: Break large stories into smaller trackable pieces
+
+5. **Notes Array**: Timestamped progress notes added during execution
+
+### Migration Steps
+
+**Option 1: Use the Ralph Skill (Recommended)**
+
+```bash
+# Generate new format from existing PRD
+Load the ralph skill and convert prd.json to tasks.json format
+```
+
+**Option 2: Manual Conversion**
+
+1. Create `tasks.json` with TaskMaster structure
+2. Move `userStories` array to `tasks` array
+3. Rename `passes: false` → `status: "pending"`
+4. Rename `passes: true` → `status: "done"`
+5. Move top-level fields to `metadata` object
+6. Add empty `dependsOn`, `blockedBy`, `subtasks` arrays
+7. Expand `description` to full story format with context
+
+**Example Migration Script:**
+
+```bash
+# Backup old format
+cp prd.json prd.json.backup
+
+# Convert manually or use jq (simplified example)
+cat prd.json | jq '{
+  tasks: [.userStories[] | {
+    id,
+    title,
+    description,
+    status: (if .passes then "done" else "pending" end),
+    priority,
+    acceptanceCriteria,
+    dependsOn: [],
+    blockedBy: [],
+    subtasks: [],
+    notes: []
+  }],
+  metadata: {
+    project,
+    branchName,
+    description,
+    taskMasterVersion: "1.0"
+  }
+}' > tasks.json
+```
+
+### Benefits of TaskMaster Format
+
+- **Better dependency tracking**: Know what's blocking work
+- **Visual progress**: Unicode box-drawing progress bars
+- **Richer context**: Full user story format with implementation details
+- **Flexible states**: Track in-progress work explicitly
+- **CLI commands**: `ralph status` and `ralph list-tasks` for quick checks
 
 ## References
 
