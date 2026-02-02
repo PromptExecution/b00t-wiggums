@@ -1,4 +1,4 @@
-# Ralph MCP Integration 🚀
+# Ralph MCP
 
 Ralph now supports **FastMCP 3.0** with both server and client capabilities, plus TaskMaster-AI integration for rich task management!
 

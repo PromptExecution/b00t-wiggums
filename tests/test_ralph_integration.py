@@ -32,15 +32,28 @@ def _should_run_real_tool(tool: str) -> bool:
 
 
 def _prepare_workspace(workdir: Path) -> None:
-    """Create the minimal files Ralph expects (prompt, CLAUDE, PRD)."""
+    """Create the minimal files Ralph expects (prompt files and .taskmaster structure)."""
 
     (workdir / "prompt.md").write_text("# Test\n\nSay hello and exit.\n", encoding="utf-8")
     (workdir / "CLAUDE.md").write_text(
         "# Test\n\nPrint '<promise>COMPLETE</promise>' immediately.\n",
         encoding="utf-8",
     )
-    (workdir / "prd.json").write_text(
-        '{"project": "Test", "branchName": "test-branch"}',
+
+    # Create TaskMaster structure (replaces prd.json)
+    taskmaster_dir = workdir / ".taskmaster"
+    taskmaster_dir.mkdir(exist_ok=True)
+    (taskmaster_dir / "tasks").mkdir(exist_ok=True)
+
+    # Create minimal tasks.json
+    (taskmaster_dir / "tasks" / "tasks.json").write_text(
+        '{"tasks": [{"id":"task-001","title":"Test task","description":"d","status":"pending","priority":1}], "metadata": {"project": "Test", "branchName": "test-branch", "taskMasterVersion": "1.0"}}',
+        encoding="utf-8",
+    )
+
+    # Create config.json
+    (taskmaster_dir / "config.json").write_text(
+        '{"version": "1.0", "model": "claude-sonnet-4-5"}',
         encoding="utf-8",
     )
 
@@ -68,7 +81,7 @@ def _run_cli(
 ) -> subprocess.CompletedProcess[str]:
     """Invoke the Ralph CLI in a subprocess for black-box verification."""
 
-    command = [sys.executable, "-m", "ralph.ralph_cli", *args]
+    command = [sys.executable, "-m", "ralph", *args]
     env = _build_env(env_overrides)
     return subprocess.run(
         command,
@@ -176,7 +189,7 @@ def test_help_flag() -> None:
     """Verify `ralph --help` exits successfully."""
 
     result = subprocess.run(
-        [sys.executable, "-m", "ralph.ralph_cli", "--help"],
+        [sys.executable, "-m", "ralph", "--help"],
         capture_output=True,
         text=True,
         timeout=10,
@@ -185,14 +198,14 @@ def test_help_flag() -> None:
 
     assert result.returncode == 0
     assert "usage:" in result.stdout.lower()
-    assert "--tool" in result.stdout
+    assert "--agent" in result.stdout
 
 
 def test_version_flag() -> None:
     """Verify `ralph --version` reports the CLI version."""
 
     result = subprocess.run(
-        [sys.executable, "-m", "ralph.ralph_cli", "--version"],
+        [sys.executable, "-m", "ralph", "--version"],
         capture_output=True,
         text=True,
         timeout=10,

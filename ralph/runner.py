@@ -78,10 +78,10 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
     )
 
     # Create TaskMaster client for progress tracking
+    # Note: TaskMaster finds tasks in .taskmaster/ (set up by ralph.sh)
     taskmaster = create_client(
         prefer_mcp=config.use_mcp,
         mcp_url=config.taskmaster_url,
-        tasks_file=WORKING_DIR / "tasks.json",
     )
 
     # Display initial task summary with visual progress

@@ -39,9 +39,6 @@ def mock_project_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 def test_archive_previous_run_success(mock_project_root: Path) -> None:
     """Test archive_previous_run() creates archive directory."""
-    prd_path = mock_project_root / "prd.json"
-    progress_path = mock_project_root / "progress.txt"
-
     result = archive_previous_run("old/branch", "new/branch")
 
     assert isinstance(result, Success)
