@@ -23,6 +23,7 @@ from ralph.logging_utils import (
     log_success,
     log_warning,
 )
+from ralph.progress_display import display_progress_summary
 from ralph.taskmaster_adapter import create_client
 
 WORKING_DIR = Path.cwd()
@@ -83,16 +84,14 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
         tasks_file=WORKING_DIR / "tasks.json",
     )
 
-    # Display initial task summary
+    # Display initial task summary with visual progress
     tasks_result = taskmaster.get_all_tasks()
     if isinstance(tasks_result, Failure):
         log_warning(logger, f"Could not load tasks: {tasks_result.failure()}")
     else:
         tasks = tasks_result.unwrap()
-        pending = [t for t in tasks if t.status == "pending"]
-        in_progress = [t for t in tasks if t.status == "in-progress"]
-        done = [t for t in tasks if t.status == "done"]
-        log_info(logger, f"Tasks: {len(done)} done, {len(in_progress)} in progress, {len(pending)} pending")
+        summary = display_progress_summary(tasks)
+        log_info(logger, "\n" + summary)
 
     executor = _build_executor(config.tool, config)
 
@@ -113,12 +112,12 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
             log_success(logger, "Ralph completed all tasks!")
             log_success(logger, f"Completed at iteration {iteration} of {max_iterations}")
 
-            # Display final task summary
+            # Display final task summary with visual progress
             tasks_result = taskmaster.get_all_tasks()
             if not isinstance(tasks_result, Failure):
                 tasks = tasks_result.unwrap()
-                done = [t for t in tasks if t.status == "done"]
-                log_success(logger, f"Final: {len(done)}/{len(tasks)} tasks completed")
+                summary = display_progress_summary(tasks)
+                log_success(logger, "\n" + summary)
             return 0
 
         log_info(logger, f"Iteration {iteration} complete. Continuing...")
