@@ -208,3 +208,25 @@ Started: 2026-01-31 21:56:53.522243
   - Implementation: OpenCode executor uses standard _run_subprocess with input_text for prompt
   - Context: All quality checks pass (mypy strict, ruff, pytest with 67 passed/3 skipped)
 ---
+## 2026-02-02 19:50:00 - task-003
+- Refactored ralph/entrypoint.py to use argparse subparsers
+- Implemented three subcommands: run, status, list-tasks
+- Added comprehensive help text with examples in epilog
+- run subcommand includes: --tool (required), --max-iterations, --task-id, --dry-run, --verbose
+- status subcommand displays TaskMaster progress summary with emoji indicators
+- list-tasks subcommand filters tasks by status (all/pending/in-progress/done)
+- Updated MCP tool run_ralph_iteration to use new CLI structure
+- Updated all tests to use new subcommand syntax
+- Files changed: ralph/entrypoint.py, tests/test_entrypoint.py, tests/test_ralph_cli.py, tests/test_ralph_integration.py, .taskmaster/tasks/tasks.json
+- **Learnings for future iterations:**
+  - Pattern: argparse subparsers create cleaner CLI with better discoverability
+  - Pattern: RawDescriptionHelpFormatter + epilog provides comprehensive examples
+  - Pattern: Subcommand handlers (_cmd_run, _cmd_status, _cmd_list_tasks) keep code organized
+  - Pattern: Use emoji indicators (✓, ⚡, ○, 🚫) for visual status display
+  - Implementation: Maintained --mcp flag at top level for backwards compatibility
+  - Implementation: Dry-run mode allows users to test without executing
+  - Gotcha: Must avoid unused variable assignments for subparsers (ruff F841)
+  - Gotcha: Tests must be updated to match new CLI structure
+  - Context: CLI now much more intuitive - users can discover commands with --help
+  - Context: OpenCode added to tool choices alongside amp, claude, codex
+---
