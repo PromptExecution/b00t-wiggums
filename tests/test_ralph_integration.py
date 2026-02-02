@@ -6,9 +6,8 @@ import os
 import shutil
 import subprocess
 import sys
-import textwrap
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Mapping, Sequence
 
 import pytest
 from returns.result import Success

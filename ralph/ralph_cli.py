@@ -14,7 +14,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--tool",
-        choices=["amp", "claude", "codex"],
+        choices=["amp", "claude", "codex", "opencode"],
         default="amp",
         help="Tool to run (default: amp)",
     )

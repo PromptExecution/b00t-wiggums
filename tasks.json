@@ -25,7 +25,7 @@
       "id": "task-002",
       "title": "Add OpenCode executor support",
       "description": "As a developer working with multiple AI coding tools, I need Ralph to support OpenCode as a fourth executor option alongside amp, claude, and codex, so that I can leverage OpenCode's unique capabilities in my autonomous coding workflows.\n\nOpenCode has a different CLI interface than the other tools but follows similar execution patterns. We need to abstract it behind the same ToolExecutor protocol that makes Ralph's executor system pluggable.\n\nImplementation approach: In ralph/executors.py, create a frozen dataclass OpenCodeExecutor that follows the existing pattern. It should have prompt_path, working_dir, and model fields. The run() method should execute OpenCode's CLI (likely 'opencode --model {model} < {prompt_path}'), use the proven _TeeToStderr pattern for real-time output capture, and return Result[str, Exception].\n\nConfiguration comes from config.py's opencode_model and opencode_extra_args fields (already added). The _build_executor() function in runner.py needs a new match case for 'opencode'.\n\nThis enables users to run 'uv run ralph --tool opencode' just like the other executors.",
-      "status": "pending",
+      "status": "in-progress",
       "priority": 2,
       "acceptanceCriteria": [
         "OpenCodeExecutor dataclass created with frozen=True, slots=True",
@@ -67,7 +67,7 @@
       "id": "task-004",
       "title": "Add visual progress display with dependency trees",
       "description": "As a developer watching Ralph execute autonomously, I need rich visual feedback about progress and task relationships, so that I can quickly understand what's been completed, what's in progress, what's blocked, and how stories depend on each other.\n\nCurrently, runner.py shows basic text output like '3 done, 1 in progress, 4 pending' which is functional but not visually engaging. When running long autonomous sessions, developers need to glance at the terminal and immediately grasp the state of the project.\n\nImplementation approach: Create ralph/progress_display.py with:\n1. ProgressStats dataclass (total_tasks, completed, in_progress, pending, blocked counts)\n2. display_progress_bar() - Shows Unicode box-drawing progress bar like: [████████░░░░] 66.7%\n3. display_task_tree() - Shows dependency tree with indentation showing parent/child relationships\n\nIntegrate into runner.py at iteration start and completion. Use Unicode characters (█ for filled, ░ for empty) for the progress bar. For the tree view, use box-drawing characters (├─, └─, │) to show hierarchical task dependencies.\n\nExample output:\n```\n==================================================\nProgress: [████████████░░░░░░░░] 60.0%\nCompleted: 3/5 | In Progress: 1 | Pending: 1 | Blocked: 0\n==================================================\n\nTask Tree:\n└─ task-001: ✓ TaskMaster integration [done]\n├─ task-002: ⚡ OpenCode executor [in-progress]\n└─ task-003: ○ CLI refactor [pending]\n    └─ (blocked by: task-002)\n```\n\nThis transforms terminal output from boring text to engaging visual feedback.",
-      "status": "pending",
+      "status": "done",
       "priority": 4,
       "acceptanceCriteria": [
         "ProgressStats dataclass created",
@@ -79,9 +79,9 @@
       "dependsOn": [],
       "blockedBy": [],
       "subtasks": [],
-      "notes": [],
+      "notes": ["2026-02-02T20:00:00Z: Completed - Visual progress display with Unicode box-drawing characters implemented"],
       "createdAt": "2026-02-01T11:00:00Z",
-      "updatedAt": "2026-02-01T11:00:00Z"
+      "updatedAt": "2026-02-02T20:00:00Z"
     },
     {
       "id": "task-005",

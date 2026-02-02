@@ -8,11 +8,9 @@ from unittest.mock import patch
 
 import pytest
 from returns.maybe import Nothing, Some
-from returns.result import Failure, Success
+from returns.result import Success
 
 from ralph.archiver import (
-    ARCHIVE_DIR,
-    LAST_BRANCH_PATH,
     archive_previous_run,
     check_branch_change,
 )

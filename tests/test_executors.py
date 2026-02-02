@@ -14,6 +14,7 @@ from ralph.executors import (
     ClaudeExecutor,
     CodexExecutor,
     ExecutorError,
+    OpenCodeExecutor,
 )
 
 
@@ -123,6 +124,49 @@ def test_codex_executor_with_extra_args(tmp_path: Path) -> None:
     assert isinstance(result, Success)
     args = mock_subprocess.call_args
     command = args[0][0]
+    assert "--verbose" in command
+    assert "--debug" in command
+
+
+def test_opencode_executor_success(temp_prompt_file: Path) -> None:
+    """Test OpenCodeExecutor with successful execution."""
+    executor = OpenCodeExecutor(
+        prompt_path=temp_prompt_file,
+        working_dir=temp_prompt_file.parent,
+        model="gpt-4",
+    )
+
+    with patch("ralph.executors._run_subprocess") as mock_subprocess:
+        mock_subprocess.return_value = Success("Output from opencode")
+        result = executor.run()
+
+    assert isinstance(result, Success)
+    assert result.unwrap() == "Output from opencode"
+    mock_subprocess.assert_called_once()
+    args = mock_subprocess.call_args
+    assert args[0][0] == ("opencode", "--model", "gpt-4")
+    assert args[1]["input_text"] == "Test prompt content"
+
+
+def test_opencode_executor_with_extra_args(temp_prompt_file: Path) -> None:
+    """Test OpenCodeExecutor with extra arguments."""
+    executor = OpenCodeExecutor(
+        prompt_path=temp_prompt_file,
+        working_dir=temp_prompt_file.parent,
+        model="gpt-4o",
+        extra_args="--verbose --debug",
+    )
+
+    with patch("ralph.executors._run_subprocess") as mock_subprocess:
+        mock_subprocess.return_value = Success("Output")
+        result = executor.run()
+
+    assert isinstance(result, Success)
+    args = mock_subprocess.call_args
+    command = args[0][0]
+    assert command[0] == "opencode"
+    assert "--model" in command
+    assert "gpt-4o" in command
     assert "--verbose" in command
     assert "--debug" in command
 
