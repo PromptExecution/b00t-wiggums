@@ -193,3 +193,18 @@ Started: 2026-01-31 21:56:53.522243
   - Pattern: When running pytest with coverage, invoke via `python -m pytest --cov ...` so plugins inside .venv are discovered reliably
   - Gotcha: GitHub Actions needs `uv sync --frozen --dev` before invoking tooling to hydrate dev dependencies
 ---
+## 2026-02-01 15:15:00 - task-002
+- Implemented OpenCodeExecutor in ralph/executors.py following existing pattern
+- Created frozen dataclass with prompt_path, working_dir, model, and extra_args fields
+- Integrated into runner._build_executor() with match case for "opencode"
+- Created test stub at tests/tool_stubs/opencode
+- Fixed test_codex_executor_with_extra_args to include new RalphConfig fields
+- Files changed: ralph/executors.py, ralph/runner.py, tests/tool_stubs/opencode, tests/test_executors.py, .taskmaster/tasks/tasks.json
+- **Learnings for future iterations:**
+  - Pattern: OpenCodeExecutor follows same pattern as AmpExecutor and ClaudeExecutor (prompt_path + working_dir)
+  - Pattern: Config fields (opencode_model, opencode_extra_args) were already present in config.py
+  - Pattern: Test stubs need to be executable (chmod +x) and consume stdin
+  - Gotcha: RalphConfig has required fields (use_mcp, taskmaster_url, opencode_*) that must be included in test fixtures
+  - Implementation: OpenCode executor uses standard _run_subprocess with input_text for prompt
+  - Context: All quality checks pass (mypy strict, ruff, pytest with 67 passed/3 skipped)
+---

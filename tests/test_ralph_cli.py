@@ -12,15 +12,17 @@ import pytest
 from ralph import entrypoint as ralph_cli
 
 
-def test_main_requires_agent() -> None:
+def test_main_requires_subcommand() -> None:
+    """Test that main() requires a subcommand."""
     with pytest.raises(SystemExit) as exc_info:
         ralph_cli.main([])
     assert exc_info.value.code == 2
 
 
-def test_main_invalid_agent() -> None:
+def test_main_invalid_tool() -> None:
+    """Test that main() rejects invalid tool names."""
     with pytest.raises(SystemExit) as exc_info:
-        ralph_cli.main(["--agent", "invalid"])
+        ralph_cli.main(["run", "--tool", "invalid"])
     assert exc_info.value.code == 2
 
 
@@ -30,7 +32,8 @@ def test_main_version_flag() -> None:
     assert exc_info.value.code == 0
 
 
-def test_main_runs_with_agent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_runs_with_tool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that main() executes with the run subcommand."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "prompt.md").write_text("# Test prompt\n")
     (tmp_path / ".taskmaster" / "tasks").mkdir(parents=True)
@@ -43,13 +46,14 @@ def test_main_runs_with_agent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(ralph_cli, "_run_and_capture", fake_run)
     monkeypatch.setattr("ralph.entrypoint.time.sleep", lambda _seconds: None)
 
-    exit_code = ralph_cli.main(["--agent", "amp", "1"])
+    exit_code = ralph_cli.main(["run", "--tool", "amp", "--max-iterations", "1"])
 
     assert exit_code == 0
     assert (tmp_path / "progress.txt").exists()
 
 
 def test_main_defaults_to_sys_argv(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Test that main() defaults to sys.argv when no args provided."""
     monkeypatch.chdir(tmp_path)
     (tmp_path / "prompt.md").write_text("# Test prompt\n")
     (tmp_path / ".taskmaster" / "tasks").mkdir(parents=True)
@@ -62,7 +66,7 @@ def test_main_defaults_to_sys_argv(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     monkeypatch.setattr(ralph_cli, "_run_and_capture", fake_run)
     monkeypatch.setattr("ralph.entrypoint.time.sleep", lambda _seconds: None)
 
-    with patch.object(sys, "argv", ["ralph", "--agent", "amp", "1"]):
+    with patch.object(sys, "argv", ["ralph", "run", "--tool", "amp", "--max-iterations", "1"]):
         exit_code = ralph_cli.main()
 
     assert exit_code == 0

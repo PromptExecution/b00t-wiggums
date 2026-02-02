@@ -82,11 +82,37 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="ralph",
         description="Ralph Wiggum - Long-running AI agent loop",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run with Claude agent for max 10 iterations
+  ralph run --tool claude --max-iterations 10
+
+  # Run with OpenCode agent using a specific task
+  ralph run --tool opencode --task-id task-003
+
+  # Dry-run mode (show what would happen without executing)
+  ralph run --tool amp --dry-run
+
+  # Show current task status
+  ralph status
+
+  # List all tasks
+  ralph list-tasks
+
+  # List only pending tasks
+  ralph list-tasks --filter pending
+
+  # Run as MCP server
+  ralph --mcp
+        """,
     )
+
+    # Global flags
     parser.add_argument(
         "--mcp",
         action="store_true",
-        help="Run as an MCP server (ignores --agent/max_iterations)",
+        help="Run as an MCP server (ignores subcommands)",
     )
     parser.add_argument(
         "--transport",
@@ -105,18 +131,89 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         default=8000,
         help="HTTP port when using --transport http (default: 8000)",
     )
-
-    parser.add_argument("--agent", choices=("amp", "claude", "codex", "opencode"))
-    parser.add_argument("max_iterations", nargs="?", type=int, default=10)
     parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
     )
 
+    # Subcommands
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Run subcommand
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Execute the agent loop",
+        description="Run Ralph autonomous agent for specified iterations",
+    )
+    run_parser.add_argument(
+        "--tool",
+        required=True,
+        choices=("amp", "claude", "codex", "opencode"),
+        help="AI tool to use for execution",
+    )
+    run_parser.add_argument(
+        "--max-iterations",
+        type=int,
+        default=10,
+        help="Maximum iterations to run (default: 10)",
+    )
+    run_parser.add_argument(
+        "--task-id",
+        type=str,
+        help="Specific task ID to execute (optional)",
+    )
+    run_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would happen without executing",
+    )
+    run_parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output",
+    )
+
+    # Status subcommand
+    subparsers.add_parser(
+        "status",
+        help="Show current task status summary",
+        description="Display TaskMaster completion status and progress",
+    )
+
+    # List-tasks subcommand
+    list_tasks_parser = subparsers.add_parser(
+        "list-tasks",
+        help="List all stories",
+        description="Display all tasks with optional filtering",
+    )
+    list_tasks_parser.add_argument(
+        "--filter",
+        choices=("all", "pending", "in-progress", "done"),
+        default="all",
+        help="Filter tasks by status (default: all)",
+    )
+
+    # Backwards compatibility: if no subcommand but --agent is provided
     args = parser.parse_args(argv)
-    if not args.mcp and not args.agent:
-        parser.error("--agent is required. Use --agent amp|claude|codex|opencode.")
+
+    # Handle MCP mode
+    if args.mcp:
+        return args
+
+    # Handle backwards compatibility: --agent flag without subcommand
+    if hasattr(args, 'command') and args.command is None:
+        # Check if old-style flags were used
+        if '--agent' in argv or any(arg in argv for arg in ('amp', 'claude', 'codex', 'opencode')):
+            parser.error(
+                "The --agent flag is deprecated. Use subcommands instead:\n"
+                "  ralph run --tool amp|claude|codex|opencode [--max-iterations N]"
+            )
+        parser.error(
+            "A subcommand is required. Use 'ralph run', 'ralph status', or 'ralph list-tasks'.\n"
+            "Run 'ralph --help' for more information."
+        )
+
     return args
 
 
@@ -155,57 +252,51 @@ def _run_and_capture(cmd: list[str], stdin_path: Path | None = None) -> str:
             stdin.close()
 
 
-def main(argv: list[str] | None = None) -> int:
-    """
-    Ralph runtime execution.
-
-    Note: Preflight checks (uv sync, .taskmaster setup, .gitignore) are handled
-    by ralph.sh wrapper. This function focuses on execution only.
-    """
-    if argv is None:
-        argv = sys.argv[1:]
-
-    args = _parse_args(argv)
-    root = _project_root()
-
-    if args.mcp:
-        # FastMCP consumes the transport + kwargs; we provide a stable CLI surface
-        # without relying on sys.argv surgery.
-        if args.transport == "http":
-            mcp.run(transport="http", host=args.host, port=args.port)
-        else:
-            mcp.run(transport="stdio")
-        return 0
-
+def _cmd_run(args: argparse.Namespace, root: Path) -> int:
+    """Execute the agent loop (run subcommand)."""
     if not _require_tasks(root):
         return 1
 
     progress_file = root / "progress.txt"
     _ensure_progress_file(progress_file)
 
+    if args.dry_run:
+        LOGGER.info("DRY RUN MODE - No actual execution")
+        LOGGER.info("Tool: %s", args.tool)
+        LOGGER.info("Max iterations: %s", args.max_iterations)
+        if args.task_id:
+            LOGGER.info("Task ID: %s", args.task_id)
+        LOGGER.info("Would execute agent loop but exiting due to --dry-run")
+        return 0
+
+    # Environment variables for codex
     codex_model = os.environ.get("CODEX_MODEL", "gpt-5.2-codex")
     codex_reasoning_effort = os.environ.get("CODEX_REASONING_EFFORT", "high")
     codex_sandbox = os.environ.get("CODEX_SANDBOX", "workspace-write")
     codex_extra_args = os.environ.get("CODEX_EXTRA_ARGS", "")
 
+    log_level = "verbose" if args.verbose else "normal"
     LOGGER.info(
-        "Starting Ralph - Agent: %s - Max iterations: %s",
-        args.agent,
+        "Starting Ralph - Tool: %s - Max iterations: %s - Log level: %s",
+        args.tool,
         args.max_iterations,
+        log_level,
     )
+    if args.task_id:
+        LOGGER.info("Targeting specific task: %s", args.task_id)
 
     for i in range(1, args.max_iterations + 1):
         LOGGER.info("")
         LOGGER.info("===============================================================")
-        LOGGER.info("  Ralph Iteration %s of %s (%s)", i, args.max_iterations, args.agent)
+        LOGGER.info("  Ralph Iteration %s of %s (%s)", i, args.max_iterations, args.tool)
         LOGGER.info("===============================================================")
 
-        if args.agent == "amp":
+        if args.tool == "amp":
             output = _run_and_capture(
                 ["amp", "--dangerously-allow-all"],
                 stdin_path=root / "prompt.md",
             )
-        elif args.agent == "codex":
+        elif args.tool == "codex":
             codex_args = [
                 "codex",
                 "exec",
@@ -223,8 +314,13 @@ def main(argv: list[str] | None = None) -> int:
                 codex_args.extend(shlex.split(codex_extra_args))
             codex_args.append("@ralph-next")
             output = _run_and_capture(codex_args)
-        else:
-            # Keep behavior consistent across agents: _run_and_capture already streams output.
+        elif args.tool == "opencode":
+            # OpenCode executor (placeholder - adjust CLI as needed)
+            output = _run_and_capture(
+                ["opencode", "--model", "default"],
+                stdin_path=root / "CLAUDE.md",
+            )
+        else:  # claude
             output = _run_and_capture(
                 [
                     "claude",
@@ -254,13 +350,150 @@ def main(argv: list[str] | None = None) -> int:
     return 1
 
 
+def _cmd_status(_args: argparse.Namespace, _root: Path) -> int:
+    """Show current task status summary (status subcommand)."""
+    try:
+        result = subprocess.run(
+            ["taskmaster", "list", "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        data = json.loads(result.stdout)
+        tasks = data.get("tasks", [])
+        metadata = data.get("metadata", {})
+
+        total = len(tasks)
+        completed = sum(1 for t in tasks if t.get("status") == "done")
+        in_progress = sum(1 for t in tasks if t.get("status") == "in-progress")
+        pending = sum(1 for t in tasks if t.get("status") == "pending")
+        blocked = sum(1 for t in tasks if t.get("blockedBy", []))
+
+        completion_pct = round((completed / total) * 100, 1) if total > 0 else 0
+
+        print(f"\n{'=' * 60}")
+        print(f"Project: {metadata.get('project', 'Unknown')}")
+        print(f"Branch: {metadata.get('branchName', 'Unknown')}")
+        print(f"{'=' * 60}")
+        print(f"\nProgress: {completion_pct}% complete")
+        print(f"  ✓ Completed: {completed}/{total}")
+        print(f"  ⚡ In Progress: {in_progress}")
+        print(f"  ○ Pending: {pending}")
+        print(f"  🚫 Blocked: {blocked}")
+        print(f"{'=' * 60}\n")
+
+        return 0
+    except subprocess.CalledProcessError as e:
+        LOGGER.error("Failed to get task status: %s", e.stderr)
+        return 1
+    except FileNotFoundError:
+        LOGGER.error("taskmaster CLI not found. Install taskmaster-ai first.")
+        return 1
+    except Exception as e:
+        LOGGER.error("Error getting task status: %s", e)
+        return 1
+
+
+def _cmd_list_tasks(args: argparse.Namespace, _root: Path) -> int:
+    """List all tasks with optional filtering (list-tasks subcommand)."""
+    try:
+        result = subprocess.run(
+            ["taskmaster", "list", "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        data = json.loads(result.stdout)
+        tasks = data.get("tasks", [])
+
+        # Apply filter
+        if args.filter != "all":
+            tasks = [t for t in tasks if t.get("status") == args.filter]
+
+        if not tasks:
+            print(f"\nNo tasks found with filter: {args.filter}\n")
+            return 0
+
+        print(f"\n{'=' * 60}")
+        print(f"Tasks (filter: {args.filter})")
+        print(f"{'=' * 60}\n")
+
+        for task in tasks:
+            status_emoji = {
+                "done": "✓",
+                "in-progress": "⚡",
+                "pending": "○",
+                "cancelled": "✗",
+            }.get(task.get("status", "pending"), "○")
+
+            blocked_marker = " 🚫" if task.get("blockedBy", []) else ""
+            priority = task.get("priority", 0)
+
+            print(f"{status_emoji} [{task.get('id')}] {task.get('title')}{blocked_marker}")
+            print(f"   Priority: {priority} | Status: {task.get('status')}")
+
+            if task.get("blockedBy"):
+                print(f"   Blocked by: {', '.join(task.get('blockedBy', []))}")
+
+            print()
+
+        print(f"{'=' * 60}\n")
+        return 0
+    except subprocess.CalledProcessError as e:
+        LOGGER.error("Failed to list tasks: %s", e.stderr)
+        return 1
+    except FileNotFoundError:
+        LOGGER.error("taskmaster CLI not found. Install taskmaster-ai first.")
+        return 1
+    except Exception as e:
+        LOGGER.error("Error listing tasks: %s", e)
+        return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    """
+    Ralph runtime execution.
+
+    Note: Preflight checks (uv sync, .taskmaster setup, .gitignore) are handled
+    by ralph.sh wrapper. This function focuses on execution only.
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+
+    args = _parse_args(argv)
+    root = _project_root()
+
+    # Handle MCP mode
+    if args.mcp:
+        if args.transport == "http":
+            mcp.run(transport="http", host=args.host, port=args.port)
+        else:
+            mcp.run(transport="stdio")
+        return 0
+
+    # Dispatch to subcommand handlers
+    if args.command == "run":
+        return _cmd_run(args, root)
+    elif args.command == "status":
+        return _cmd_status(args, root)
+    elif args.command == "list-tasks":
+        return _cmd_list_tasks(args, root)
+
+    # Should never reach here due to argparse validation
+    LOGGER.error("Unknown command: %s", args.command)
+    return 1
+
+
 @mcp.tool()
 def run_ralph_iteration(
-    agent: str = "codex",
+    tool: str = "codex",
     max_iterations: int = 1,
+    task_id: str | None = None,
 ) -> dict[str, str | int]:
     """Run Ralph autonomous agent for specified iterations."""
-    args = ["--agent", agent, str(max_iterations)]
+    args = ["run", "--tool", tool, "--max-iterations", str(max_iterations)]
+    if task_id:
+        args.extend(["--task-id", task_id])
 
     exit_code = main(args)
     root = _project_root()

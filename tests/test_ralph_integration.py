@@ -113,7 +113,7 @@ def test_ralph_with_amp_can_start(tmp_path: Path) -> None:
     """Run Ralph with the real amp tool when available."""
 
     _prepare_workspace(tmp_path)
-    result = _run_cli(tmp_path, ["--agent", "amp", "1"], timeout=5)
+    result = _run_cli(tmp_path, ["run", "--tool", "amp", "--max-iterations", "1"], timeout=5)
     assert result.returncode in (0, 1)
 
 
@@ -125,7 +125,7 @@ def test_ralph_with_claude_can_start(tmp_path: Path) -> None:
     """Run Ralph with the real claude tool when available."""
 
     _prepare_workspace(tmp_path)
-    result = _run_cli(tmp_path, ["--agent", "claude", "1"], timeout=5)
+    result = _run_cli(tmp_path, ["run", "--tool", "claude", "--max-iterations", "1"], timeout=5)
     assert result.returncode in (0, 1)
 
 
@@ -138,7 +138,7 @@ def test_ralph_with_codex_can_start(tmp_path: Path) -> None:
 
     _prepare_workspace(tmp_path)
     env = {"CODEX_PROMPT_FILE": str(tmp_path / "CLAUDE.md")}
-    result = _run_cli(tmp_path, ["--agent", "codex", "1"], env_overrides=env, timeout=5)
+    result = _run_cli(tmp_path, ["run", "--tool", "codex", "--max-iterations", "1"], env_overrides=env, timeout=5)
     assert result.returncode in (0, 1)
 
 
@@ -147,7 +147,7 @@ def test_ralph_logs_iterations_and_creates_progress_file(tmp_path: Path) -> None
 
     _prepare_workspace(tmp_path)
     env = _install_fake_amp(tmp_path)
-    result = _run_cli(tmp_path, ["--agent", "amp", "1"], env_overrides=env, timeout=10)
+    result = _run_cli(tmp_path, ["run", "--tool", "amp", "--max-iterations", "1"], env_overrides=env, timeout=10)
 
     assert result.returncode == 0
     stderr = result.stderr
@@ -186,7 +186,7 @@ def test_completion_signal_detection() -> None:
 
 
 def test_help_flag() -> None:
-    """Verify `ralph --help` exits successfully."""
+    """Verify `ralph --help` exits successfully and shows subcommands."""
 
     result = subprocess.run(
         [sys.executable, "-m", "ralph", "--help"],
@@ -198,7 +198,9 @@ def test_help_flag() -> None:
 
     assert result.returncode == 0
     assert "usage:" in result.stdout.lower()
-    assert "--agent" in result.stdout
+    assert "run" in result.stdout
+    assert "status" in result.stdout
+    assert "list-tasks" in result.stdout
 
 
 def test_version_flag() -> None:

@@ -9,15 +9,18 @@ import pytest
 from ralph import entrypoint
 
 
-def test_parse_args_requires_agent() -> None:
+def test_parse_args_requires_command() -> None:
+    """Test that a subcommand is required."""
     with pytest.raises(SystemExit) as exc:
         entrypoint._parse_args([])
     assert exc.value.code == 2
 
 
-def test_parse_args_valid_agent() -> None:
-    args = entrypoint._parse_args(["--agent", "amp", "3"])
-    assert args.agent == "amp"
+def test_parse_args_run_subcommand() -> None:
+    """Test that 'run' subcommand parses correctly."""
+    args = entrypoint._parse_args(["run", "--tool", "amp", "--max-iterations", "3"])
+    assert args.command == "run"
+    assert args.tool == "amp"
     assert args.max_iterations == 3
 
 
@@ -35,16 +38,16 @@ def test_progress_file_created_on_run(monkeypatch: pytest.MonkeyPatch, tmp_path:
     monkeypatch.setattr(entrypoint, "_run_and_capture", fake_run)
     monkeypatch.setattr("ralph.entrypoint.time.sleep", lambda _seconds: None)
 
-    rc = entrypoint.main(["--agent", "amp", "1"])
+    rc = entrypoint.main(["run", "--tool", "amp", "--max-iterations", "1"])
     assert rc == 0
     assert (tmp_path / "progress.txt").exists()
 
 
-def test_parse_args_mcp_without_agent() -> None:
-    """Test that --mcp flag works without requiring --agent."""
+def test_parse_args_mcp_without_subcommand() -> None:
+    """Test that --mcp flag works without requiring a subcommand."""
     args = entrypoint._parse_args(["--mcp"])
     assert args.mcp is True
-    assert args.agent is None
+    assert not hasattr(args, 'tool')
 
 
 def test_parse_args_mcp_with_default_transport() -> None:
