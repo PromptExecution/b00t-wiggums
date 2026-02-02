@@ -89,7 +89,7 @@ def cmd_list_tasks(args: argparse.Namespace) -> int:
     return 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Main entry point for ralph CLI."""
     # Create main parser
     parser = argparse.ArgumentParser(
@@ -192,7 +192,7 @@ Examples:
     list_parser.set_defaults(func=cmd_list_tasks)
 
     # Parse and execute
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     result: int = args.func(args)
     return result
 

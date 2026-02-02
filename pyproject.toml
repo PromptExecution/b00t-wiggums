@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ralph = "ralph.entrypoint:main"
+ralph = "ralph.ralph_cli:main"
 
 [build-system]
 requires = ["hatchling"]

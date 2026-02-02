@@ -186,7 +186,7 @@ def test_completion_signal_detection() -> None:
 
 
 def test_help_flag() -> None:
-    """Verify `ralph --help` exits successfully."""
+    """Verify `ralph --help` exits successfully and shows subcommands."""
 
     result = subprocess.run(
         [sys.executable, "-m", "ralph", "--help"],
@@ -198,7 +198,10 @@ def test_help_flag() -> None:
 
     assert result.returncode == 0
     assert "usage:" in result.stdout.lower()
-    assert "--agent" in result.stdout
+    # Check for subcommand structure
+    assert "run" in result.stdout
+    assert "status" in result.stdout
+    assert "list-tasks" in result.stdout
 
 
 def test_version_flag() -> None:
