@@ -253,3 +253,53 @@ Started: 2026-01-31 21:56:53.522243
   - Context: All 72 tests passing (69 active + 3 skipped), 100% type checking passed
   - Gotcha: Integration tests needed updating from old ["--tool", "amp", "1"] to ["run", "--tool", "amp", "--max-iterations", "1"]
 ---
+## 2026-02-02 23:30:00 - task-005
+- Created comprehensive test suite for new modules
+- Created tests/test_taskmaster_adapter.py with 28 tests covering:
+  * Task class serialization (from_dict, to_dict, defaults)
+  * FileTaskMasterClient CRUD operations (get_all, get_next, get_by_id, update_status, add_note)
+  * CLITaskMasterClient subprocess interaction (all methods with success/error cases)
+  * MCPTaskMasterClient stub verification (NotImplementedError checks)
+  * create_client() factory function with file/MCP fallback
+  * get_current_branch() helper function
+- Created tests/test_progress_display.py with 15 tests covering:
+  * compute_progress_stats() with empty, mixed, and complete task lists
+  * display_progress_bar() with various completion percentages and custom widths
+  * display_task_tree() with single/multiple tasks, blocked dependencies, status icons, title truncation
+  * display_progress_summary() integration tests
+- OpenCode executor tests already existed in test_executors.py (added in task-002)
+- CLI subcommand tests already existed in test_ralph_cli.py (added in task-003)
+- Achieved 90% code coverage (727 statements, 74 missed, 653 covered)
+- All 115 tests passing (112 active + 3 skipped for real tool integration)
+- All quality checks passing: mypy --strict (no issues), ruff (no issues)
+- Files changed: tests/test_taskmaster_adapter.py (new), tests/test_progress_display.py (new), tasks.json
+- **Learnings for future iterations:**
+  - Pattern: Test file-based clients using tmp_path fixture for isolation
+  - Pattern: Mock subprocess calls with MagicMock for CLI client testing
+  - Pattern: Test both success and failure paths (Failure/Success Result types)
+  - Pattern: Use CalledProcessError for subprocess error simulation
+  - Pattern: Test edge cases (empty lists, missing fields, not found errors)
+  - Implementation: FileTaskMasterClient reads/writes tasks.json with full CRUD support
+  - Implementation: CLITaskMasterClient uses taskmaster CLI with proper error handling
+  - Implementation: MCPTaskMasterClient returns NotImplementedError (future work)
+  - Implementation: Progress display uses Unicode box-drawing characters (█, ░, ├─, └─)
+  - Context: Task-005 dependencies were all complete (task-001 through task-004)
+  - Context: Test suite provides comprehensive coverage of TaskMaster integration
+  - Context: 90% coverage threshold exceeded, enabling confident iteration
+---
+## 2026-02-02 - task-006
+- Updated documentation for TaskMaster integration, CLI subcommands, and OpenCode support
+- Files changed: README.md, ralph/README.md, README-MCP.md, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: Document new features comprehensively across all relevant README files
+  - Pattern: Include migration guides when file formats change (prd.json → tasks.json)
+  - Pattern: Show visual examples of terminal output (progress bars, task trees)
+  - Pattern: Document all CLI subcommands with usage examples
+  - Implementation: README.md is the main entry point, ralph/README.md has technical details
+  - Implementation: README-MCP.md covers MCP-specific integration patterns
+  - Implementation: Migration guides should include jq examples for automated conversion
+  - Context: TaskMaster format adds status tracking, dependency management, and visual progress
+  - Context: New CLI subcommands (run, status, list-tasks) improve discoverability
+  - Context: OpenCode is the fourth executor alongside amp/claude/codex
+  - Context: All 115 tests passing, no documentation changes broke functionality
+---
