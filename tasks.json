@@ -87,7 +87,7 @@
       "id": "task-005",
       "title": "Write comprehensive test suite",
       "description": "Create tests for taskmaster_adapter, OpenCodeExecutor, progress_display, and CLI subcommands. Maintain >90% coverage.",
-      "status": "pending",
+      "status": "done",
       "priority": 5,
       "acceptanceCriteria": [
         "tests/test_taskmaster_adapter.py created",
@@ -101,9 +101,9 @@
       "dependsOn": ["task-001", "task-002", "task-003", "task-004"],
       "blockedBy": [],
       "subtasks": [],
-      "notes": [],
+      "notes": ["2026-02-02T23:30:00Z: Completed - Comprehensive test suite with 90% coverage achieved"],
       "createdAt": "2026-02-01T11:00:00Z",
-      "updatedAt": "2026-02-01T11:00:00Z"
+      "updatedAt": "2026-02-02T23:30:00Z"
     },
     {
       "id": "task-006",
