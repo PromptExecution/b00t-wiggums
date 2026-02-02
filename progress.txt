@@ -212,3 +212,18 @@ Started: 2026-01-31 21:56:53.522243
   - Context: Visual feedback dramatically improves UX for autonomous execution monitoring
   - Context: All 67 unit tests still passing, no regressions introduced
 ---
+## 2026-02-02 21:30:00 - task-002
+- Implemented OpenCode executor support
+- Added "opencode" to CLI tool choices in ralph/ralph_cli.py
+- Created comprehensive test coverage with test_opencode_executor_success and test_opencode_executor_with_extra_args
+- Files changed: ralph/ralph_cli.py, tests/test_executors.py, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: OpenCodeExecutor already existed in ralph/executors.py (implemented previously)
+  - Pattern: Test stub for opencode already existed at tests/tool_stubs/opencode
+  - Pattern: Config fields (opencode_model, opencode_extra_args) already present in config.py
+  - Pattern: runner._build_executor() already had opencode case at lines 60-66
+  - Implementation: Only missing piece was adding "opencode" to CLI choices list
+  - Implementation: Added unit tests following same pattern as amp/claude/codex executors
+  - Context: Task was 90% complete - just needed CLI integration and test coverage
+  - Context: All 72 tests passing (69 active + 3 skipped), 100% type checking passed
+---

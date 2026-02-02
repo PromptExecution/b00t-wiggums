@@ -25,7 +25,7 @@
       "id": "task-002",
       "title": "Add OpenCode executor support",
       "description": "As a developer working with multiple AI coding tools, I need Ralph to support OpenCode as a fourth executor option alongside amp, claude, and codex, so that I can leverage OpenCode's unique capabilities in my autonomous coding workflows.\n\nOpenCode has a different CLI interface than the other tools but follows similar execution patterns. We need to abstract it behind the same ToolExecutor protocol that makes Ralph's executor system pluggable.\n\nImplementation approach: In ralph/executors.py, create a frozen dataclass OpenCodeExecutor that follows the existing pattern. It should have prompt_path, working_dir, and model fields. The run() method should execute OpenCode's CLI (likely 'opencode --model {model} < {prompt_path}'), use the proven _TeeToStderr pattern for real-time output capture, and return Result[str, Exception].\n\nConfiguration comes from config.py's opencode_model and opencode_extra_args fields (already added). The _build_executor() function in runner.py needs a new match case for 'opencode'.\n\nThis enables users to run 'uv run ralph --tool opencode' just like the other executors.",
-      "status": "in-progress",
+      "status": "done",
       "priority": 2,
       "acceptanceCriteria": [
         "OpenCodeExecutor dataclass created with frozen=True, slots=True",
@@ -39,9 +39,9 @@
       "dependsOn": [],
       "blockedBy": [],
       "subtasks": [],
-      "notes": [],
+      "notes": ["2026-02-02T21:30:00Z: Completed - OpenCode executor fully integrated with test coverage"],
       "createdAt": "2026-02-01T11:00:00Z",
-      "updatedAt": "2026-02-01T11:00:00Z"
+      "updatedAt": "2026-02-02T21:30:00Z"
     },
     {
       "id": "task-003",
