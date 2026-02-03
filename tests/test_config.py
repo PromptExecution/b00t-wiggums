@@ -23,6 +23,12 @@ def test_config_from_env_defaults() -> None:
     assert config.codex_full_auto is True
     assert config.codex_extra_args == ""
     assert config.codex_prompt_file.name == "CLAUDE.md"
+    # Officer Clancy defaults (disabled by default for opt-in behavior)
+    assert config.budget_enabled is False
+    assert config.budget_max_attempts == 10
+    assert config.budget_limit == 100.0
+    assert config.budget_cost_per_attempt == 10.0
+    assert config.budget_allow_overflow is False
 
 
 def test_config_from_env_custom_values() -> None:
@@ -78,3 +84,35 @@ def test_config_immutability() -> None:
 
     with pytest.raises(AttributeError):
         config.codex_model = "new-model"  # type: ignore[misc]
+
+
+def test_config_budget_from_env() -> None:
+    """Test RalphConfig.from_env() with Officer Clancy budget configuration."""
+    env_vars = {
+        "RALPH_BUDGET_ENABLED": "true",
+        "RALPH_MAX_ATTEMPTS": "5",
+        "RALPH_BUDGET_LIMIT": "50.0",
+        "RALPH_COST_PER_ATTEMPT": "5.0",
+        "RALPH_BUDGET_ALLOW_OVERFLOW": "true",
+    }
+
+    with patch.dict(os.environ, env_vars, clear=False):
+        config = RalphConfig.from_env(tool="amp")
+
+    assert config.budget_enabled is True
+    assert config.budget_max_attempts == 5
+    assert config.budget_limit == 50.0
+    assert config.budget_cost_per_attempt == 5.0
+    assert config.budget_allow_overflow is True
+
+
+def test_config_budget_disabled() -> None:
+    """Test RalphConfig.from_env() with budget guardian disabled."""
+    env_vars = {
+        "RALPH_BUDGET_ENABLED": "false",
+    }
+
+    with patch.dict(os.environ, env_vars, clear=False):
+        config = RalphConfig.from_env(tool="amp")
+
+    assert config.budget_enabled is False

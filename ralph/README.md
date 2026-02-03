@@ -153,6 +153,20 @@ Ralph supports the following environment variables for configuration:
 | `OPENCODE_EXTRA_ARGS` | Additional opencode arguments | (empty) |
 | `TASKMASTER_URL` | TaskMaster server URL (if using MCP) | (empty, uses file-based) |
 
+### Officer Clancy Budget Guardian
+
+Ralph includes Officer Clancy, a budget guardian that prevents runaway agent loops. **Disabled by default** (opt-in):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `RALPH_BUDGET_ENABLED` | Enable budget guardian | `false` |
+| `RALPH_MAX_ATTEMPTS` | Maximum task attempts | `10` |
+| `RALPH_BUDGET_LIMIT` | Total budget limit (abstract units) | `100.0` |
+| `RALPH_COST_PER_ATTEMPT` | Cost deducted per attempt | `10.0` |
+| `RALPH_BUDGET_ALLOW_OVERFLOW` | Allow exceeding budget with warning | `false` |
+
+See [Officer Clancy skill documentation](../skills/officer-clancy/SKILL.md) for detailed usage.
+
 ### Example: Custom Codex Configuration
 
 ```bash

@@ -8,6 +8,10 @@ ralph TOOL ITERATIONS='10':
 ralph-test:
     uv run pytest tests/test_ralph*
 
+# Run budget guardian tests
+ralph-test-budget:
+    uv run pytest tests/test_budget_guardian.py -v
+
 # Type check and lint ralph module
 ralph-check:
     uv run mypy --strict ralph/ && uv run ruff check ralph/
@@ -55,6 +59,14 @@ ralph-tasks-active:
 # Run ralph in dry-run mode (no actual execution)
 ralph-dry-run TOOL='amp' ITERATIONS='10':
     uv run ralph run --tool {{TOOL}} --max-iterations {{ITERATIONS}} --dry-run
+
+# Run ralph with Officer Clancy budget limits
+ralph-budget TOOL='amp' ITERATIONS='10' MAX_ATTEMPTS='5' BUDGET='50':
+    RALPH_MAX_ATTEMPTS={{MAX_ATTEMPTS}} RALPH_BUDGET_LIMIT={{BUDGET}} uv run ralph run --tool {{TOOL}} --max-iterations {{ITERATIONS}}
+
+# Run ralph with budget guardian disabled
+ralph-no-budget TOOL='amp' ITERATIONS='10':
+    RALPH_BUDGET_ENABLED=false uv run ralph run --tool {{TOOL}} --max-iterations {{ITERATIONS}}
 
 # Run ralph as MCP server (stdio transport)
 ralph-mcp:
