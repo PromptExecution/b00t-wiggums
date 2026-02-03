@@ -52,10 +52,10 @@ else:
 
 ### With Ralph Runner
 
-Officer Clancy is integrated into Ralph's iteration loop. Configure via environment variables:
+Officer Clancy is integrated into Ralph's iteration loop but **disabled by default** (opt-in). Configure via environment variables:
 
 ```bash
-# Enable/disable budget guardian
+# Enable budget guardian (disabled by default for opt-in behavior)
 export RALPH_BUDGET_ENABLED=true
 
 # Set limits

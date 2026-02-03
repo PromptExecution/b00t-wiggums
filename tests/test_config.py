@@ -23,8 +23,8 @@ def test_config_from_env_defaults() -> None:
     assert config.codex_full_auto is True
     assert config.codex_extra_args == ""
     assert config.codex_prompt_file.name == "CLAUDE.md"
-    # Officer Clancy defaults
-    assert config.budget_enabled is True
+    # Officer Clancy defaults (disabled by default for opt-in behavior)
+    assert config.budget_enabled is False
     assert config.budget_max_attempts == 10
     assert config.budget_limit == 100.0
     assert config.budget_cost_per_attempt == 10.0

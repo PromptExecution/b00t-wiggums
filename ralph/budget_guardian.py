@@ -161,8 +161,8 @@ class BudgetGuardian:
             return 1.0
         return self._state.total_cost / self._config.budget_limit
 
-    def _update_escalation_level(self) -> EscalationLevel:
-        """Update and return the current escalation level based on budget usage."""
+    def _check_and_update_escalation(self) -> EscalationLevel:
+        """Check budget usage and update escalation level, triggering callbacks if changed."""
         percentage = self.budget_percentage_used
         attempt_percentage = (
             self._state.total_attempts / self._config.max_attempts
@@ -239,7 +239,7 @@ class BudgetGuardian:
         self._state.last_attempt_time = datetime.now()
 
         # Update escalation level
-        escalation = self._update_escalation_level()
+        escalation = self._check_and_update_escalation()
 
         result = AttemptResult(
             attempt_number=self._state.total_attempts,

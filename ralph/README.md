@@ -155,11 +155,11 @@ Ralph supports the following environment variables for configuration:
 
 ### Officer Clancy Budget Guardian
 
-Ralph includes Officer Clancy, a budget guardian that prevents runaway agent loops:
+Ralph includes Officer Clancy, a budget guardian that prevents runaway agent loops. **Disabled by default** (opt-in):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `RALPH_BUDGET_ENABLED` | Enable budget guardian | `true` |
+| `RALPH_BUDGET_ENABLED` | Enable budget guardian | `false` |
 | `RALPH_MAX_ATTEMPTS` | Maximum task attempts | `10` |
 | `RALPH_BUDGET_LIMIT` | Total budget limit (abstract units) | `100.0` |
 | `RALPH_COST_PER_ATTEMPT` | Cost deducted per attempt | `10.0` |

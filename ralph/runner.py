@@ -83,9 +83,9 @@ def _create_budget_guardian(
     def escalation_callback(level: EscalationLevel, _state: object) -> None:
         """Callback for escalation level changes."""
         if level == EscalationLevel.WARNING:
-            log_warning(logger, f"🚨 Officer Clancy: Budget warning - {level.value} level")
+            log_warning(logger, "🚨 Officer Clancy: Budget at WARNING level")
         elif level == EscalationLevel.CRITICAL:
-            log_warning(logger, "🚨 Officer Clancy: CRITICAL - approaching budget limit")
+            log_warning(logger, "🚨 Officer Clancy: Budget at CRITICAL level - approaching limit")
         elif level == EscalationLevel.EXCEEDED:
             log_error(logger, "🚨 Officer Clancy: BUDGET EXCEEDED - stopping execution")
 

@@ -26,7 +26,7 @@ class RalphConfig:
     taskmaster_url: str | None = None
 
     # Officer Clancy Budget Guardian configuration
-    budget_enabled: bool = True
+    budget_enabled: bool = False
     budget_max_attempts: int = 10
     budget_limit: float = 100.0
     budget_cost_per_attempt: float = 10.0
@@ -53,7 +53,7 @@ class RalphConfig:
             use_mcp=use_mcp,
             taskmaster_url=os.environ.get("TASKMASTER_URL"),
             # Officer Clancy Budget Guardian
-            budget_enabled=os.environ.get("RALPH_BUDGET_ENABLED", "true").lower() == "true",
+            budget_enabled=os.environ.get("RALPH_BUDGET_ENABLED", "false").lower() == "true",
             budget_max_attempts=int(os.environ.get("RALPH_MAX_ATTEMPTS", "10")),
             budget_limit=float(os.environ.get("RALPH_BUDGET_LIMIT", "100.0")),
             budget_cost_per_attempt=float(os.environ.get("RALPH_COST_PER_ATTEMPT", "10.0")),
