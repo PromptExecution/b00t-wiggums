@@ -12,7 +12,7 @@ Repository: [PromptExecution/b00t-wiggums](https://github.com/PromptExecution/b0
 - Python 3.11+
 - `uv` installed
 - One agent CLI installed/authenticated (`amp`, `claude`, `codex`, or `opencode`)
-- Node.js/npm (for TaskMaster CLI)
+- Node.js/pnpm (for TaskMaster CLI)
 - A git repository for your project
 
 ## Install b00t-wiggums
@@ -28,7 +28,7 @@ uv sync
 Ralph currently relies on the `taskmaster` CLI for task operations.
 
 ```bash
-npm install -g @taskmaster-ai/cli
+pnpm install -g task-master-ai
 taskmaster --help
 ```
 
@@ -146,8 +146,8 @@ Flowchart source lives in `flowchart/`:
 
 ```bash
 cd flowchart
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Project home: [PromptExecution/b00t-wiggums](https://github.com/PromptExecution/b00t-wiggums)
