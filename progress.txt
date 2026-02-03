@@ -193,3 +193,145 @@ Started: 2026-01-31 21:56:53.522243
   - Pattern: When running pytest with coverage, invoke via `python -m pytest --cov ...` so plugins inside .venv are discovered reliably
   - Gotcha: GitHub Actions needs `uv sync --frozen --dev` before invoking tooling to hydrate dev dependencies
 ---
+## 2026-02-02 20:00:00 - task-004
+- Implemented visual progress display module with Unicode box-drawing characters
+- Created ralph/progress_display.py with ProgressStats, display_progress_bar(), display_task_tree(), and display_progress_summary()
+- Integrated visual display into runner.py replacing basic text progress
+- Progress bar uses █ (filled) and ░ (empty) characters with percentage
+- Task tree uses ├─, └─, and │ box-drawing characters
+- Status icons: ✓ (done), ⚡ (in-progress), ○ (pending), 👀 (review), ✗ (cancelled)
+- Shows blocked tasks with indented dependency list
+- Files changed: ralph/progress_display.py (new), ralph/runner.py
+- **Learnings for future iterations:**
+  - Pattern: Use Unicode box-drawing characters for visual terminal output
+  - Pattern: Ternary operators preferred over if-else blocks (ruff SIM108)
+  - Pattern: Sort tasks by priority for consistent display order
+  - Pattern: Truncate long titles to prevent line wrapping (50 chars + "...")
+  - Implementation: Progress bar width is configurable (default 20 characters)
+  - Implementation: Separator lines use 50 equals signs for clean visual boundaries
+  - Context: Visual feedback dramatically improves UX for autonomous execution monitoring
+  - Context: All 67 unit tests still passing, no regressions introduced
+---
+## 2026-02-02 21:30:00 - task-002
+- Implemented OpenCode executor support
+- Added "opencode" to CLI tool choices in ralph/ralph_cli.py
+- Created comprehensive test coverage with test_opencode_executor_success and test_opencode_executor_with_extra_args
+- Files changed: ralph/ralph_cli.py, tests/test_executors.py, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: OpenCodeExecutor already existed in ralph/executors.py (implemented previously)
+  - Pattern: Test stub for opencode already existed at tests/tool_stubs/opencode
+  - Pattern: Config fields (opencode_model, opencode_extra_args) already present in config.py
+  - Pattern: runner._build_executor() already had opencode case at lines 60-66
+  - Implementation: Only missing piece was adding "opencode" to CLI choices list
+  - Implementation: Added unit tests following same pattern as amp/claude/codex executors
+  - Context: Task was 90% complete - just needed CLI integration and test coverage
+  - Context: All 72 tests passing (69 active + 3 skipped), 100% type checking passed
+---
+## 2026-02-02 23:00:00 - task-003
+- Implemented CLI refactor with subcommands (run, status, list-tasks)
+- Added FileTaskMasterClient for direct tasks.json access (no external CLI dependency)
+- Updated taskmaster_adapter.py to support file-based operations (read/write tasks.json)
+- Refactored ralph_cli.py with argparse subparsers and RawDescriptionHelpFormatter
+- Added three subcommands with distinct functionality:
+  * run: Execute agent loop with --tool, --max-iterations, --task-id, --dry-run, --verbose
+  * status: Show visual progress summary using display_progress_summary()
+  * list-tasks: List tasks with --filter option
+- Updated all unit tests (tests/test_ralph_cli.py) to use new subcommand syntax
+- Updated integration tests (tests/test_ralph_integration.py) to use "run" subcommand
+- Files changed: ralph/ralph_cli.py, ralph/taskmaster_adapter.py, tests/test_ralph_cli.py, tests/test_ralph_integration.py, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: FileTaskMasterClient reads/writes tasks.json directly without external CLI dependency
+  - Pattern: create_client() factory defaults to file-based mode (prefer_mcp=False)
+  - Pattern: Subcommands use set_defaults(func=cmd_name) to dispatch to handler functions
+  - Pattern: Unused args parameters must be prefixed with underscore (_args) for ruff compliance
+  - Pattern: Type annotation result: int = args.func(args) needed for mypy strict mode
+  - Implementation: Help epilog uses triple-quoted string with Examples section
+  - Implementation: list-tasks displays tasks in table format with truncated titles
+  - Implementation: status subcommand leverages existing progress_display module
+  - Implementation: dry-run mode prints what would execute without running
+  - Context: CLI now much more discoverable - users can run ralph --help to see all commands
+  - Context: All 72 tests passing (69 active + 3 skipped), 100% type checking passed
+  - Gotcha: Integration tests needed updating from old ["--tool", "amp", "1"] to ["run", "--tool", "amp", "--max-iterations", "1"]
+---
+## 2026-02-02 23:30:00 - task-005
+- Created comprehensive test suite for new modules
+- Created tests/test_taskmaster_adapter.py with 28 tests covering:
+  * Task class serialization (from_dict, to_dict, defaults)
+  * FileTaskMasterClient CRUD operations (get_all, get_next, get_by_id, update_status, add_note)
+  * CLITaskMasterClient subprocess interaction (all methods with success/error cases)
+  * MCPTaskMasterClient stub verification (NotImplementedError checks)
+  * create_client() factory function with file/MCP fallback
+  * get_current_branch() helper function
+- Created tests/test_progress_display.py with 15 tests covering:
+  * compute_progress_stats() with empty, mixed, and complete task lists
+  * display_progress_bar() with various completion percentages and custom widths
+  * display_task_tree() with single/multiple tasks, blocked dependencies, status icons, title truncation
+  * display_progress_summary() integration tests
+- OpenCode executor tests already existed in test_executors.py (added in task-002)
+- CLI subcommand tests already existed in test_ralph_cli.py (added in task-003)
+- Achieved 90% code coverage (727 statements, 74 missed, 653 covered)
+- All 115 tests passing (112 active + 3 skipped for real tool integration)
+- All quality checks passing: mypy --strict (no issues), ruff (no issues)
+- Files changed: tests/test_taskmaster_adapter.py (new), tests/test_progress_display.py (new), tasks.json
+- **Learnings for future iterations:**
+  - Pattern: Test file-based clients using tmp_path fixture for isolation
+  - Pattern: Mock subprocess calls with MagicMock for CLI client testing
+  - Pattern: Test both success and failure paths (Failure/Success Result types)
+  - Pattern: Use CalledProcessError for subprocess error simulation
+  - Pattern: Test edge cases (empty lists, missing fields, not found errors)
+  - Implementation: FileTaskMasterClient reads/writes tasks.json with full CRUD support
+  - Implementation: CLITaskMasterClient uses taskmaster CLI with proper error handling
+  - Implementation: MCPTaskMasterClient returns NotImplementedError (future work)
+  - Implementation: Progress display uses Unicode box-drawing characters (█, ░, ├─, └─)
+  - Context: Task-005 dependencies were all complete (task-001 through task-004)
+  - Context: Test suite provides comprehensive coverage of TaskMaster integration
+  - Context: 90% coverage threshold exceeded, enabling confident iteration
+---
+## 2026-02-02 - task-006
+- Updated documentation for TaskMaster integration, CLI subcommands, and OpenCode support
+- Files changed: README.md, ralph/README.md, README-MCP.md, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: Document new features comprehensively across all relevant README files
+  - Pattern: Include migration guides when file formats change (prd.json → tasks.json)
+  - Pattern: Show visual examples of terminal output (progress bars, task trees)
+  - Pattern: Document all CLI subcommands with usage examples
+  - Implementation: README.md is the main entry point, ralph/README.md has technical details
+  - Implementation: README-MCP.md covers MCP-specific integration patterns
+  - Implementation: Migration guides should include jq examples for automated conversion
+  - Context: TaskMaster format adds status tracking, dependency management, and visual progress
+  - Context: New CLI subcommands (run, status, list-tasks) improve discoverability
+  - Context: OpenCode is the fourth executor alongside amp/claude/codex
+  - Context: All 115 tests passing, no documentation changes broke functionality
+---
+## 2026-02-03 - task-007
+- Updated justfile with new TaskMaster commands
+- Added ralph-tasks, ralph-status, ralph-opencode, ralph-mcp, ralph-dry-run commands
+- Updated existing commands to use new subcommand syntax (run --tool instead of --agent)
+- Added ralph-mcp-http for HTTP transport MCP server
+- Added ralph-tasks-pending and ralph-tasks-active for filtered task views
+- Files changed: justfile, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: Just commands should use new CLI subcommand structure
+  - Pattern: Include both stdio and HTTP transport options for MCP
+  - Pattern: Provide filtered views for common task queries
+  - Context: All ralph commands now use `run --tool X --max-iterations N` syntax
+  - Context: MCP server can run with --mcp flag (stdio) or --mcp --transport http
+---
+## 2026-02-03 - task-008
+- Updated skills for TaskMaster JSON format
+- Modified skills/prd/SKILL.md to generate .taskmaster/tasks/tasks.json instead of prd.json
+- Modified skills/ralph/SKILL.md to convert PRDs to TaskMaster format
+- Added dependency tracking documentation (dependsOn vs blockedBy)
+- Added task size rules and validation checklists
+- Updated examples to show full TaskMaster schema with metadata
+- Files changed: skills/prd/SKILL.md, skills/ralph/SKILL.md, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: TaskMaster format has tasks[] array with task-XXX IDs
+  - Pattern: metadata object contains project, branchName, description, taskMasterVersion
+  - Pattern: dependsOn is documentary, blockedBy is enforced
+  - Pattern: Each task needs status, priority, acceptanceCriteria, dependsOn, blockedBy, subtasks, notes, timestamps
+  - Implementation: Skills should output to .taskmaster/tasks/tasks.json not root prd.json
+  - Implementation: Optional markdown PRD can go to tasks/prd-[name].md for documentation
+  - Context: TaskMaster v1.0 schema is now the standard format
+  - Context: All 8 tasks in ralph/python-rewrite branch completed
+---
