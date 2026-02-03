@@ -1,6 +1,6 @@
 ---
-name: prd
-description: "Generate TaskMaster tasks.json for a new feature. Use when planning a feature, starting a new project, or when asked to create tasks. Triggers on: create tasks, write prd for, plan this feature, requirements for, spec out, generate tasks.json."
+name: ralph-prd
+description: "Generate TaskMaster tasks.json for a new feature. Use when planning a feature, starting a new project, or when asked to create tasks. Triggers on: create tasks, write prd for, plan this feature, requirements for, spec out, generate tasks.json, use the ralph-prd skill."
 user-invocable: true
 ---
 
