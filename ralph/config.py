@@ -25,6 +25,13 @@ class RalphConfig:
     use_mcp: bool = False
     taskmaster_url: str | None = None
 
+    # Officer Clancy Budget Guardian configuration
+    budget_enabled: bool = True
+    budget_max_attempts: int = 10
+    budget_limit: float = 100.0
+    budget_cost_per_attempt: float = 10.0
+    budget_allow_overflow: bool = False
+
     # Codex-specific configuration
     codex_prompt_file: Path = field(default_factory=_default_codex_prompt_file)
     codex_model: str = "gpt-5-codex"
@@ -45,6 +52,15 @@ class RalphConfig:
             tool=tool,
             use_mcp=use_mcp,
             taskmaster_url=os.environ.get("TASKMASTER_URL"),
+            # Officer Clancy Budget Guardian
+            budget_enabled=os.environ.get("RALPH_BUDGET_ENABLED", "true").lower() == "true",
+            budget_max_attempts=int(os.environ.get("RALPH_MAX_ATTEMPTS", "10")),
+            budget_limit=float(os.environ.get("RALPH_BUDGET_LIMIT", "100.0")),
+            budget_cost_per_attempt=float(os.environ.get("RALPH_COST_PER_ATTEMPT", "10.0")),
+            budget_allow_overflow=os.environ.get(
+                "RALPH_BUDGET_ALLOW_OVERFLOW", "false"
+            ).lower() == "true",
+            # Codex
             codex_prompt_file=Path(os.environ.get("CODEX_PROMPT_FILE", str(root / "CLAUDE.md"))),
             codex_model=os.environ.get("CODEX_MODEL", "gpt-5-codex"),
             codex_reasoning_effort=os.environ.get("CODEX_REASONING_EFFORT", "high"),

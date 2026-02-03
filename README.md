@@ -134,11 +134,31 @@ uv run ralph --mcp --transport http --host 127.0.0.1 --port 8000
 
 - `ralph.sh` - Wrapper with preflight checks (`uv sync`, TaskMaster bootstrap, gitignore checks)
 - `ralph/` - Python implementation and CLI
+- `ralph/budget_guardian.py` - Officer Clancy budget guardian module
 - `OPERATIONS.md` - Operational reference
 - `.taskmaster/tasks/tasks.json` - TaskMaster task data
 - `skills/ralph-prd/` - Source for the `/ralph-prd` skill
 - `skills/ralph/` - Source for the `/ralph` conversion skill
+- `skills/officer-clancy/` - Source for the Officer Clancy budget guardian skill
 - `flowchart/` - Interactive visualization source
+
+## Officer Clancy: Budget Guardian
+
+Ralph includes Officer Clancy, a budget guardian that prevents runaway agent loops by:
+
+- **Tracking attempts**: Limits the number of task retry attempts
+- **Managing budgets**: Sets computational/time budgets with escalation alerts
+- **Preventing infinite loops**: Automatically stops execution when limits are exceeded
+
+Configure via environment variables:
+
+```bash
+export RALPH_BUDGET_ENABLED=true
+export RALPH_MAX_ATTEMPTS=10
+export RALPH_BUDGET_LIMIT=100.0
+```
+
+See [Officer Clancy skill documentation](skills/officer-clancy/SKILL.md) for detailed usage.
 
 ## Flowchart
 

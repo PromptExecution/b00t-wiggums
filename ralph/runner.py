@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 from typing import TypeVar
 
 from returns.result import Failure, Result
 
+from ralph.budget_guardian import (
+    BudgetConfig,
+    BudgetGuardian,
+    EscalationLevel,
+)
 from ralph.config import RalphConfig
 from ralph.executors import (
     AmpExecutor,
@@ -67,6 +73,32 @@ def _build_executor(tool: str, config: RalphConfig) -> ToolExecutor:
     raise ValueError(f"Unsupported tool requested: {tool}")
 
 
+def _create_budget_guardian(
+    config: RalphConfig, logger: logging.Logger
+) -> BudgetGuardian | None:
+    """Create a budget guardian from config if enabled."""
+    if not config.budget_enabled:
+        return None
+
+    def escalation_callback(level: EscalationLevel, _state: object) -> None:
+        """Callback for escalation level changes."""
+        if level == EscalationLevel.WARNING:
+            log_warning(logger, f"🚨 Officer Clancy: Budget warning - {level.value} level")
+        elif level == EscalationLevel.CRITICAL:
+            log_warning(logger, "🚨 Officer Clancy: CRITICAL - approaching budget limit")
+        elif level == EscalationLevel.EXCEEDED:
+            log_error(logger, "🚨 Officer Clancy: BUDGET EXCEEDED - stopping execution")
+
+    budget_config = BudgetConfig(
+        max_attempts=config.budget_max_attempts,
+        budget_limit=config.budget_limit,
+        cost_per_attempt=config.budget_cost_per_attempt,
+        allow_budget_overflow=config.budget_allow_overflow,
+    )
+
+    return BudgetGuardian(budget_config, escalation_callback=escalation_callback)
+
+
 def run_ralph(config: RalphConfig, max_iterations: int) -> int:
     """Run the Ralph tool loop for a maximum number of iterations."""
 
@@ -76,6 +108,15 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
         logger,
         f"Configuration loaded: tool={config.tool} iterations={max_iterations} model={config.codex_model}",
     )
+
+    # Initialize Officer Clancy Budget Guardian
+    guardian = _create_budget_guardian(config, logger)
+    if guardian is not None:
+        log_info(
+            logger,
+            f"🚨 Officer Clancy on duty: max_attempts={config.budget_max_attempts}, "
+            f"budget={config.budget_limit:.2f}",
+        )
 
     # Create TaskMaster client for progress tracking
     # Note: TaskMaster finds tasks in .taskmaster/ (set up by ralph.sh)
@@ -96,6 +137,21 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
     executor = _build_executor(config.tool, config)
 
     for iteration in range(1, max_iterations + 1):
+        # Check with Officer Clancy before each iteration
+        if guardian is not None:
+            attempt_result = guardian.authorize_attempt()
+            if isinstance(attempt_result, Failure):
+                error = attempt_result.failure()
+                log_error(logger, f"🚨 Officer Clancy: {error}")
+                log_info(logger, guardian.get_summary())
+                return 1
+            attempt = attempt_result.unwrap()
+            log_info(
+                logger,
+                f"🚨 Officer Clancy: Attempt {attempt.attempt_number} authorized "
+                f"(budget: {attempt.remaining_budget:.2f}/{config.budget_limit:.2f})",
+            )
+
         log_info(logger, "")
         log_info(logger, "=" * 63)
         log_info(logger, f"Ralph Iteration {iteration} of {max_iterations} ({config.tool})")
@@ -103,14 +159,23 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
 
         try:
             output = _unwrap_result(executor.run(), "Tool execution failed")
+            if guardian is not None:
+                guardian.record_success()
         except RuntimeError as exc:
             log_error(logger, "Tool execution failed", exc)
+            if guardian is not None:
+                guardian.record_failure(str(exc))
+                log_info(logger, guardian.get_summary())
             return 1
 
         if _check_for_completion(output):
             log_info(logger, "")
             log_success(logger, "Ralph completed all tasks!")
             log_success(logger, f"Completed at iteration {iteration} of {max_iterations}")
+
+            # Display Officer Clancy final report
+            if guardian is not None:
+                log_success(logger, guardian.get_summary())
 
             # Display final task summary with visual progress
             tasks_result = taskmaster.get_all_tasks()
@@ -128,6 +193,8 @@ def run_ralph(config: RalphConfig, max_iterations: int) -> int:
         logger,
         f"Ralph reached max iterations ({max_iterations}) without completing all tasks.",
     )
+    if guardian is not None:
+        log_info(logger, guardian.get_summary())
     return 1
 
 
