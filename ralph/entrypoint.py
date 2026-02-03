@@ -42,9 +42,9 @@ def _print_tasks_missing_instructions() -> None:
     # Keep this short and copy/paste friendly. It is printed from both bash and python
     # entrypoints to keep behavior consistent regardless of invocation method.
     sys.stderr.write("\n")
-    sys.stderr.write("To create tasks with the prd skill, run your designated agent with this prompt:\n\n")
+    sys.stderr.write("To create tasks with the ralph-prd skill, run your designated agent with this prompt:\n\n")
     sys.stderr.write(
-        "Use the prd skill to generate TaskMaster tasks.json for this repo.\n"
+        "Use the ralph-prd skill to generate TaskMaster tasks.json for this repo.\n"
         "Requirements:\n"
         "- Output must be TaskMaster format with tasks[] and metadata.\n"
         "- Include 3-7 small, actionable tasks with acceptance criteria.\n"

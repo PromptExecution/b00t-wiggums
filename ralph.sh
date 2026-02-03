@@ -40,10 +40,10 @@ error() {
 # Display instructions for creating TaskMaster tasks
 show_task_creation_instructions() {
     echo ""
-    echo "To create tasks with the prd skill, run your designated agent with this prompt:"
+    echo "To create tasks with the ralph-prd skill, run your designated agent with this prompt:"
     echo ""
     cat <<'EOF'
-Use the prd skill to generate TaskMaster tasks.json for this repo.
+Use the ralph-prd skill to generate TaskMaster tasks.json for this repo.
 Requirements:
 - Output must be TaskMaster format with tasks[] and metadata.
 - Include 3-7 small, actionable tasks with acceptance criteria.
