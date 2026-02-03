@@ -303,3 +303,35 @@ Started: 2026-01-31 21:56:53.522243
   - Context: OpenCode is the fourth executor alongside amp/claude/codex
   - Context: All 115 tests passing, no documentation changes broke functionality
 ---
+## 2026-02-03 - task-007
+- Updated justfile with new TaskMaster commands
+- Added ralph-tasks, ralph-status, ralph-opencode, ralph-mcp, ralph-dry-run commands
+- Updated existing commands to use new subcommand syntax (run --tool instead of --agent)
+- Added ralph-mcp-http for HTTP transport MCP server
+- Added ralph-tasks-pending and ralph-tasks-active for filtered task views
+- Files changed: justfile, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: Just commands should use new CLI subcommand structure
+  - Pattern: Include both stdio and HTTP transport options for MCP
+  - Pattern: Provide filtered views for common task queries
+  - Context: All ralph commands now use `run --tool X --max-iterations N` syntax
+  - Context: MCP server can run with --mcp flag (stdio) or --mcp --transport http
+---
+## 2026-02-03 - task-008
+- Updated skills for TaskMaster JSON format
+- Modified skills/prd/SKILL.md to generate .taskmaster/tasks/tasks.json instead of prd.json
+- Modified skills/ralph/SKILL.md to convert PRDs to TaskMaster format
+- Added dependency tracking documentation (dependsOn vs blockedBy)
+- Added task size rules and validation checklists
+- Updated examples to show full TaskMaster schema with metadata
+- Files changed: skills/prd/SKILL.md, skills/ralph/SKILL.md, tasks.json
+- **Learnings for future iterations:**
+  - Pattern: TaskMaster format has tasks[] array with task-XXX IDs
+  - Pattern: metadata object contains project, branchName, description, taskMasterVersion
+  - Pattern: dependsOn is documentary, blockedBy is enforced
+  - Pattern: Each task needs status, priority, acceptanceCriteria, dependsOn, blockedBy, subtasks, notes, timestamps
+  - Implementation: Skills should output to .taskmaster/tasks/tasks.json not root prd.json
+  - Implementation: Optional markdown PRD can go to tasks/prd-[name].md for documentation
+  - Context: TaskMaster v1.0 schema is now the standard format
+  - Context: All 8 tasks in ralph/python-rewrite branch completed
+---

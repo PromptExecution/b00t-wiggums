@@ -1,12 +1,12 @@
 ---
 name: prd
-description: "Generate a Product Requirements Document (PRD) for a new feature. Use when planning a feature, starting a new project, or when asked to create a PRD. Triggers on: create a prd, write prd for, plan this feature, requirements for, spec out."
+description: "Generate TaskMaster tasks.json for a new feature. Use when planning a feature, starting a new project, or when asked to create tasks. Triggers on: create tasks, write prd for, plan this feature, requirements for, spec out, generate tasks.json."
 user-invocable: true
 ---
 
-# PRD Generator
+# TaskMaster Tasks Generator
 
-Create detailed Product Requirements Documents that are clear, actionable, and suitable for implementation.
+Create detailed task lists in TaskMaster JSON format that are clear, actionable, and suitable for autonomous Ralph execution.
 
 ---
 
@@ -14,10 +14,11 @@ Create detailed Product Requirements Documents that are clear, actionable, and s
 
 1. Receive a feature description from the user
 2. Ask 3-5 essential clarifying questions (with lettered options)
-3. Generate a structured PRD based on answers
-4. Save to `tasks/prd-[feature-name].md`
+3. Generate structured tasks in TaskMaster format based on answers
+4. Save to `.taskmaster/tasks/tasks.json`
+5. Optionally save a markdown PRD to `tasks/prd-[feature-name].md` for documentation
 
-**Important:** Do NOT start implementing. Just create the PRD.
+**Important:** Do NOT start implementing. Just create the tasks.json file.
 
 ---
 
@@ -56,7 +57,51 @@ This lets users respond with "1A, 2C, 3B" for quick iteration.
 
 ---
 
-## Step 2: PRD Structure
+## Step 2: TaskMaster JSON Output
+
+After gathering answers, generate `.taskmaster/tasks/tasks.json` with this structure:
+
+```json
+{
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "[Short imperative title]",
+      "description": "As a [user], I want [feature] so that [benefit].\n\n[Implementation details and context]",
+      "status": "pending",
+      "priority": 1,
+      "acceptanceCriteria": [
+        "Specific verifiable criterion",
+        "Another criterion",
+        "Typecheck passes"
+      ],
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "[ISO 8601 timestamp]",
+      "updatedAt": "[ISO 8601 timestamp]"
+    }
+  ],
+  "metadata": {
+    "project": "[Project Name]",
+    "branchName": "ralph/[feature-name-kebab-case]",
+    "description": "[Feature description]",
+    "taskMasterVersion": "1.0"
+  }
+}
+```
+
+### Task Size Rule
+Each task MUST be completable in one Ralph iteration (one context window). If you cannot describe the task in 2-3 sentences, split it into smaller tasks.
+
+### Dependency Tracking
+- **dependsOn**: Array of task IDs that this task logically builds on (for documentation)
+- **blockedBy**: Array of task IDs that MUST complete before this one can start (enforced by Ralph)
+
+---
+
+## Step 3: Optional Markdown PRD
 
 Generate the PRD with these sections:
 
@@ -132,15 +177,19 @@ The PRD reader may be a junior developer or AI agent. Therefore:
 
 ---
 
-## Output
+## Output Files
 
-- **Format:** Markdown (`.md`)
-- **Location:** `tasks/`
-- **Filename:** `prd-[feature-name].md` (kebab-case)
+### Required:
+- **tasks.json**: `.taskmaster/tasks/tasks.json` (TaskMaster format)
+
+### Optional (for documentation):
+- **PRD markdown**: `tasks/prd-[feature-name].md` (human-readable)
 
 ---
 
-## Example PRD
+## Example Output
+
+### tasks.json (Required)
 
 ```markdown
 # PRD: Task Priority System
@@ -229,13 +278,31 @@ Add priority levels to tasks so users can focus on what matters most. Tasks can 
 
 ---
 
+### prd-task-priority.md (Optional Documentation)
+
+```markdown
+# PRD: Task Priority System
+
+[... Keep existing PRD example for reference ...]
+```
+
+---
+
 ## Checklist
 
-Before saving the PRD:
+Before saving tasks.json:
 
 - [ ] Asked clarifying questions with lettered options
 - [ ] Incorporated user's answers
-- [ ] User stories are small and specific
-- [ ] Functional requirements are numbered and unambiguous
-- [ ] Non-goals section defines clear boundaries
-- [ ] Saved to `tasks/prd-[feature-name].md`
+- [ ] Each task is small enough (completable in one iteration)
+- [ ] Tasks ordered by dependency (schema → backend → UI)
+- [ ] Priority numbers match dependency order
+- [ ] Every task has verifiable acceptance criteria
+- [ ] Every task has "Typecheck passes" as final criterion
+- [ ] UI tasks have "Verify in browser using dev-browser skill"
+- [ ] dependsOn arrays document logical dependencies
+- [ ] blockedBy arrays only used when absolutely required
+- [ ] All tasks use status: "pending"
+- [ ] All timestamps in ISO 8601 format
+- [ ] metadata.taskMasterVersion is "1.0"
+- [ ] Saved to `.taskmaster/tasks/tasks.json`

@@ -1,18 +1,18 @@
 ---
 name: ralph
-description: "Convert PRDs to prd.json format for the Ralph autonomous agent system. Use when you have an existing PRD and need to convert it to Ralph's JSON format. Triggers on: convert this prd, turn this into ralph format, create prd.json from this, ralph json."
+description: "Convert PRDs to TaskMaster tasks.json format for the Ralph autonomous agent system. Use when you have an existing PRD and need to convert it to Ralph's TaskMaster format. Triggers on: convert this prd, turn this into ralph format, create tasks.json from this, ralph json, taskmaster format."
 user-invocable: true
 ---
 
-# Ralph PRD Converter
+# Ralph TaskMaster Converter
 
-Converts existing PRDs to the prd.json format that Ralph uses for autonomous execution.
+Converts existing PRDs to the `.taskmaster/tasks/tasks.json` format that Ralph uses for autonomous execution with TaskMaster integration.
 
 ---
 
 ## The Job
 
-Take a PRD (markdown file or text) and convert it to `prd.json` in your ralph directory.
+Take a PRD (markdown file or text) and convert it to `tasks.json` in your `.taskmaster/tasks/` directory.
 
 ---
 
@@ -20,26 +20,48 @@ Take a PRD (markdown file or text) and convert it to `prd.json` in your ralph di
 
 ```json
 {
-  "project": "[Project Name]",
-  "branchName": "ralph/[feature-name-kebab-case]",
-  "description": "[Feature description from PRD title/intro]",
-  "userStories": [
+  "tasks": [
     {
-      "id": "US-001",
+      "id": "task-001",
       "title": "[Story title]",
-      "description": "As a [user], I want [feature] so that [benefit]",
+      "description": "As a [user], I want [feature] so that [benefit].\n\n[Additional context about implementation approach, patterns to follow, constraints]",
+      "status": "pending",
+      "priority": 1,
       "acceptanceCriteria": [
         "Criterion 1",
         "Criterion 2",
         "Typecheck passes"
       ],
-      "priority": 1,
-      "passes": false,
-      "notes": ""
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "[ISO 8601 timestamp]",
+      "updatedAt": "[ISO 8601 timestamp]"
     }
-  ]
+  ],
+  "metadata": {
+    "project": "[Project Name]",
+    "branchName": "ralph/[feature-name-kebab-case]",
+    "description": "[Feature description from PRD title/intro]",
+    "taskMasterVersion": "1.0"
+  }
 }
 ```
+
+### Field Descriptions:
+
+- **id**: Sequential task-001, task-002, etc.
+- **title**: Short descriptive name (imperative form, e.g., "Add status field to database")
+- **description**: Full user story with "As a [user], I want [feature] so that [benefit]" plus implementation details
+- **status**: Always "pending" for new tasks
+- **priority**: Numbered by dependency order (1 = must do first)
+- **acceptanceCriteria**: Array of verifiable checkpoints
+- **dependsOn**: Array of task IDs this task logically depends on (for documentation)
+- **blockedBy**: Array of task IDs that must complete before this one can start (enforced by Ralph)
+- **subtasks**: Empty array (reserved for future use)
+- **notes**: Empty array (Ralph adds notes as it works)
+- **createdAt/updatedAt**: ISO 8601 timestamps
 
 ---
 
@@ -66,7 +88,7 @@ Ralph spawns a fresh Amp instance per iteration with no memory of previous work.
 
 ## Story Ordering: Dependencies First
 
-Stories execute in priority order. Earlier stories must not depend on later ones.
+Tasks execute in priority order. Earlier tasks must not depend on later ones.
 
 **Correct order:**
 1. Schema/database changes (migrations)
@@ -77,6 +99,35 @@ Stories execute in priority order. Earlier stories must not depend on later ones
 **Wrong order:**
 1. UI component (depends on schema that does not exist yet)
 2. Schema change
+
+---
+
+## Dependency Tracking: dependsOn vs blockedBy
+
+TaskMaster supports two types of dependencies:
+
+- **dependsOn**: Documentary field showing logical dependencies (for human understanding)
+- **blockedBy**: Enforced by Ralph - task cannot start until blocking tasks are done
+
+**Example:**
+```json
+{
+  "id": "task-003",
+  "title": "Add status toggle to UI",
+  "dependsOn": ["task-001", "task-002"],  // Needs schema + badge component
+  "blockedBy": []  // Can start once priority allows it
+}
+```
+
+**When to use blockedBy:**
+- Task B cannot compile/run without Task A completing first
+- Task B would fail all tests without Task A's changes
+- Task B modifies code that Task A creates
+
+**When to use dependsOn only:**
+- Task B logically builds on Task A but could theoretically be attempted
+- Helps Ralph understand context but doesn't prevent execution
+- Documents architectural relationships
 
 ---
 
@@ -161,44 +212,53 @@ Add ability to mark tasks with different statuses.
 - Persist status in database
 ```
 
-**Output prd.json:**
+**Output tasks.json:**
 ```json
 {
-  "project": "TaskApp",
-  "branchName": "ralph/task-status",
-  "description": "Task Status Feature - Track task progress with status indicators",
-  "userStories": [
+  "tasks": [
     {
-      "id": "US-001",
+      "id": "task-001",
       "title": "Add status field to tasks table",
-      "description": "As a developer, I need to store task status in the database.",
+      "description": "As a developer, I need to store task status in the database so that users can track progress on their tasks.\n\nImplementation: Add a status enum column to the tasks table with values: 'pending', 'in_progress', 'done'. Default to 'pending' for new tasks.",
+      "status": "pending",
+      "priority": 1,
       "acceptanceCriteria": [
         "Add status column: 'pending' | 'in_progress' | 'done' (default 'pending')",
         "Generate and run migration successfully",
         "Typecheck passes"
       ],
-      "priority": 1,
-      "passes": false,
-      "notes": ""
+      "dependsOn": [],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-03T00:00:00Z",
+      "updatedAt": "2026-02-03T00:00:00Z"
     },
     {
-      "id": "US-002",
+      "id": "task-002",
       "title": "Display status badge on task cards",
-      "description": "As a user, I want to see task status at a glance.",
+      "description": "As a user, I want to see task status at a glance so I know which tasks are in progress.\n\nImplementation: Add colored badge component to task card. Use existing badge component with color variants: gray=pending, blue=in_progress, green=done.",
+      "status": "pending",
+      "priority": 2,
       "acceptanceCriteria": [
         "Each task card shows colored status badge",
         "Badge colors: gray=pending, blue=in_progress, green=done",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
-      "priority": 2,
-      "passes": false,
-      "notes": ""
+      "dependsOn": ["task-001"],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-03T00:00:00Z",
+      "updatedAt": "2026-02-03T00:00:00Z"
     },
     {
-      "id": "US-003",
+      "id": "task-003",
       "title": "Add status toggle to task list rows",
-      "description": "As a user, I want to change task status directly from the list.",
+      "description": "As a user, I want to change task status directly from the list so I can quickly update progress without opening the full task.\n\nImplementation: Add dropdown or toggle to each task row. Use optimistic updates for immediate UI feedback. Save via server action.",
+      "status": "pending",
+      "priority": 3,
       "acceptanceCriteria": [
         "Each row has status dropdown or toggle",
         "Changing status saves immediately",
@@ -206,25 +266,40 @@ Add ability to mark tasks with different statuses.
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
-      "priority": 3,
-      "passes": false,
-      "notes": ""
+      "dependsOn": ["task-001", "task-002"],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-03T00:00:00Z",
+      "updatedAt": "2026-02-03T00:00:00Z"
     },
     {
-      "id": "US-004",
+      "id": "task-004",
       "title": "Filter tasks by status",
-      "description": "As a user, I want to filter the list to see only certain statuses.",
+      "description": "As a user, I want to filter the list to see only certain statuses so I can focus on specific types of work.\n\nImplementation: Add filter dropdown to list header. Persist filter state in URL params. Show empty state when no tasks match filter.",
+      "status": "pending",
+      "priority": 4,
       "acceptanceCriteria": [
         "Filter dropdown: All | Pending | In Progress | Done",
         "Filter persists in URL params",
+        "Empty state message when no tasks match",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
-      "priority": 4,
-      "passes": false,
-      "notes": ""
+      "dependsOn": ["task-002"],
+      "blockedBy": [],
+      "subtasks": [],
+      "notes": [],
+      "createdAt": "2026-02-03T00:00:00Z",
+      "updatedAt": "2026-02-03T00:00:00Z"
     }
-  ]
+  ],
+  "metadata": {
+    "project": "TaskApp",
+    "branchName": "ralph/task-status",
+    "description": "Task Status Feature - Track task progress with status indicators",
+    "taskMasterVersion": "1.0"
+  }
 }
 ```
 
@@ -232,27 +307,34 @@ Add ability to mark tasks with different statuses.
 
 ## Archiving Previous Runs
 
-**Before writing a new prd.json, check if there is an existing one from a different feature:**
+**Before writing a new tasks.json, check if there is an existing one from a different feature:**
 
-1. Read the current `prd.json` if it exists
+1. Read the current `tasks.json` if it exists
 2. Check if `branchName` differs from the new feature's branch name
 3. If different AND `progress.txt` has content beyond the header:
    - Create archive folder: `archive/YYYY-MM-DD-feature-name/`
-   - Copy current `prd.json` and `progress.txt` to archive
+   - Copy current `tasks.json` and `progress.txt` to archive
    - Reset `progress.txt` with fresh header
 
-**The ralph.sh script handles this automatically** when you run it, but if you are manually updating prd.json between runs, archive first.
+**The ralph.sh script handles this automatically** when you run it, but if you are manually updating tasks.json between runs, archive first.
 
 ---
 
 ## Checklist Before Saving
 
-Before writing prd.json, verify:
+Before writing tasks.json to `.taskmaster/tasks/tasks.json`, verify:
 
-- [ ] **Previous run archived** (if prd.json exists with different branchName, archive it first)
-- [ ] Each story is completable in one iteration (small enough)
-- [ ] Stories are ordered by dependency (schema to backend to UI)
-- [ ] Every story has "Typecheck passes" as criterion
-- [ ] UI stories have "Verify in browser using dev-browser skill" as criterion
+- [ ] **Previous run archived** (if tasks.json exists with different branchName, archive it first)
+- [ ] Each task is completable in one iteration (small enough)
+- [ ] Tasks are ordered by dependency (schema to backend to UI)
+- [ ] Priority numbers reflect dependency order (1 = first, 2 = second, etc.)
+- [ ] Every task has "Typecheck passes" as criterion
+- [ ] UI tasks have "Verify in browser using dev-browser skill" as criterion
 - [ ] Acceptance criteria are verifiable (not vague)
-- [ ] No story depends on a later story
+- [ ] No task depends on a later task (check priority order)
+- [ ] **dependsOn** arrays list logical dependencies for each task
+- [ ] **blockedBy** arrays only used when task cannot execute without blocker
+- [ ] All task IDs use format: task-001, task-002, etc.
+- [ ] metadata.taskMasterVersion is "1.0"
+- [ ] All status fields are "pending"
+- [ ] timestamps use ISO 8601 format

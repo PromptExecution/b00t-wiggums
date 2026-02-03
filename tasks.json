@@ -17,7 +17,9 @@
       "dependsOn": [],
       "blockedBy": [],
       "subtasks": [],
-      "notes": ["2026-02-01T11:30:00Z: Completed - Added TaskMaster integration with progress display"],
+      "notes": [
+        "2026-02-01T11:30:00Z: Completed - Added TaskMaster integration with progress display"
+      ],
       "createdAt": "2026-02-01T11:00:00Z",
       "updatedAt": "2026-02-01T11:30:00Z"
     },
@@ -39,7 +41,9 @@
       "dependsOn": [],
       "blockedBy": [],
       "subtasks": [],
-      "notes": ["2026-02-02T21:30:00Z: Completed - OpenCode executor fully integrated with test coverage"],
+      "notes": [
+        "2026-02-02T21:30:00Z: Completed - OpenCode executor fully integrated with test coverage"
+      ],
       "createdAt": "2026-02-01T11:00:00Z",
       "updatedAt": "2026-02-02T21:30:00Z"
     },
@@ -79,7 +83,9 @@
       "dependsOn": [],
       "blockedBy": [],
       "subtasks": [],
-      "notes": ["2026-02-02T20:00:00Z: Completed - Visual progress display with Unicode box-drawing characters implemented"],
+      "notes": [
+        "2026-02-02T20:00:00Z: Completed - Visual progress display with Unicode box-drawing characters implemented"
+      ],
       "createdAt": "2026-02-01T11:00:00Z",
       "updatedAt": "2026-02-02T20:00:00Z"
     },
@@ -98,10 +104,17 @@
         "Coverage >90%",
         "All tests pass"
       ],
-      "dependsOn": ["task-001", "task-002", "task-003", "task-004"],
+      "dependsOn": [
+        "task-001",
+        "task-002",
+        "task-003",
+        "task-004"
+      ],
       "blockedBy": [],
       "subtasks": [],
-      "notes": ["2026-02-02T23:30:00Z: Completed - Comprehensive test suite with 90% coverage achieved"],
+      "notes": [
+        "2026-02-02T23:30:00Z: Completed - Comprehensive test suite with 90% coverage achieved"
+      ],
       "createdAt": "2026-02-01T11:00:00Z",
       "updatedAt": "2026-02-02T23:30:00Z"
     },
@@ -118,7 +131,12 @@
         "Examples show new CLI usage",
         "Migration guide from old prd.json format"
       ],
-      "dependsOn": ["task-001", "task-002", "task-003", "task-004"],
+      "dependsOn": [
+        "task-001",
+        "task-002",
+        "task-003",
+        "task-004"
+      ],
       "blockedBy": [],
       "subtasks": [],
       "notes": [],
@@ -129,7 +147,7 @@
       "id": "task-007",
       "title": "Update justfile with new commands",
       "description": "Add justfile commands for TaskMaster operations: ralph-tasks, ralph-status, ralph-opencode, ralph-mcp, ralph-dry-run.",
-      "status": "pending",
+      "status": "done",
       "priority": 7,
       "acceptanceCriteria": [
         "ralph-tasks command added",
@@ -139,7 +157,9 @@
         "ralph-dry-run command added",
         "All commands documented"
       ],
-      "dependsOn": ["task-003"],
+      "dependsOn": [
+        "task-003"
+      ],
       "blockedBy": [],
       "subtasks": [],
       "notes": [],
@@ -150,7 +170,7 @@
       "id": "task-008",
       "title": "Update skills for TaskMaster format",
       "description": "Modify skills/prd/SKILL.md and skills/ralph/SKILL.md to generate and accept TaskMaster JSON format instead of old PRD format.",
-      "status": "pending",
+      "status": "done",
       "priority": 8,
       "acceptanceCriteria": [
         "skills/prd/SKILL.md outputs tasks.json format",
