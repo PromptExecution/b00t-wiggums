@@ -72,12 +72,12 @@ Then install the skills:
 ```
 
 Available skills after installation:
-- `/prd` - Generate Product Requirements Documents
-- `/ralph` - Convert PRDs to prd.json format
+- `/prd` - Generate TaskMaster tasks.json directly from feature descriptions
+- `/ralph` - Convert existing markdown PRDs to TaskMaster format
 
-Skills are automatically invoked when you ask Claude to:
-- "create a prd", "write prd for", "plan this feature"
-- "convert this prd", "turn into ralph format", "create prd.json"
+Skills are automatically invoked when you ask your agent to:
+- "create tasks", "generate tasks.json", "plan this feature", "use the prd skill"
+- "convert this prd", "turn into taskmaster format", "use the ralph skill"
 
 ### Configure Amp auto-handoff (recommended)
 
@@ -93,98 +93,205 @@ This enables automatic handoff when context fills up, allowing Ralph to handle l
 
 ## Workflow
 
-### 1. Create a PRD
+### 1. Generate Tasks with PRD Skill
 
-Use the PRD skill to generate a detailed requirements document:
-
-```
-Load the prd skill and create a PRD for [your feature description]
-```
-
-Answer the clarifying questions. The skill saves output to `tasks/prd-[feature-name].md`.
-
-### 2. Convert PRD to TaskMaster format
-
-Use the Ralph skill to convert the markdown PRD to TaskMaster JSON:
+Use the PRD skill to generate TaskMaster tasks directly:
 
 ```
-Load the ralph skill and convert tasks/prd-[feature-name].md to tasks.json
+Use the prd skill to create tasks for [your feature description]
 ```
 
-This creates `tasks.json` with user stories structured for autonomous execution, including dependency tracking and status management.
+The skill will:
+1. Ask 3-5 clarifying questions with lettered options (answer like "1A, 2C, 3B")
+2. Generate `.taskmaster/tasks/tasks.json` with properly sized tasks
+3. Set up dependency tracking and priority ordering
+4. Optionally save a markdown PRD to `tasks/prd-[feature-name].md` for documentation
+
+**TaskMaster Format** (`.taskmaster/tasks/tasks.json`):
+```json
+{
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Add users table with auth fields",
+      "description": "As a developer, I need to store user credentials...",
+      "status": "pending",
+      "priority": 1,
+      "acceptanceCriteria": ["...", "Typecheck passes"],
+      "dependsOn": [],
+      "blockedBy": [],
+      ...
+    }
+  ],
+  "metadata": {
+    "project": "MyApp",
+    "branchName": "ralph/feature-name",
+    "taskMasterVersion": "1.0"
+  }
+}
+```
+
+### 2. Alternative: Convert Existing PRD
+
+If you have an existing markdown PRD, use the Ralph skill:
+
+```
+Use the ralph skill to convert tasks/prd-user-auth.md to TaskMaster format
+```
+
+This converts markdown PRDs to `.taskmaster/tasks/tasks.json` with proper task sizing and dependencies.
 
 ### 3. Run Ralph
 
-**Python Version (Recommended)**:
+**Using CLI Subcommands**:
 
 ```bash
-# Run with amp (default)
+# Run with specific tool and iterations
 uv run ralph run --tool amp --max-iterations 10
-
-# Using Claude Code
 uv run ralph run --tool claude --max-iterations 5
-
-# Using Codex
 uv run ralph run --tool codex --max-iterations 20
-
-# Using OpenCode
 uv run ralph run --tool opencode --max-iterations 10
 
-# Check status
+# Check status with visual progress display
 uv run ralph status
 
-# List tasks
+# List all tasks
 uv run ralph list-tasks
+
+# List only pending tasks
 uv run ralph list-tasks --filter pending
 
-# Or use justfile commands
-just ralph          # Run with amp (default)
-just ralph-claude   # Run with claude
-just ralph-codex    # Run with codex
-just ralph-opencode # Run with opencode
+# List in-progress tasks
+uv run ralph list-tasks --filter in-progress
+
+# Dry run (test without execution)
+uv run ralph run --tool amp --dry-run
 ```
 
-**Bash Version (Deprecated)**:
+**Using Justfile Shortcuts** (recommended):
 
 ```bash
-# Using Amp (default)
-./ralph.sh [max_iterations]
+# Run Ralph
+just ralph-amp 10           # Run with Amp
+just ralph-claude 5         # Run with Claude Code
+just ralph-codex 20         # Run with Codex
+just ralph-opencode 10      # Run with OpenCode
 
-# Using Claude Code
-./ralph.sh --tool claude [max_iterations]
+# Monitor progress
+just ralph-status           # Visual progress with task tree
+just ralph-tasks            # List all tasks
+just ralph-tasks-pending    # List pending tasks only
+just ralph-tasks-active     # List in-progress tasks only
+
+# Testing and validation
+just ralph-dry-run amp 3    # Test without execution
+just ralph-test             # Run test suite
+just ralph-check            # Type check and lint
+just ralph-all              # Format, check, and test
+
+# MCP Server
+just ralph-mcp              # Run as MCP server (stdio)
+just ralph-mcp-http 8000    # Run as MCP server (HTTP)
 ```
 
-Default is 10 iterations. Use `--tool` to select your AI coding tool (amp, claude, codex, or opencode).
+**Using TaskMaster CLI**:
+
+```bash
+# Task management
+taskmaster task list                        # List all tasks
+taskmaster task get task-001                # View task details
+taskmaster task update task-001 --status done
+taskmaster status                           # Overall status
+```
 
 Ralph will:
-1. Display visual progress with Unicode box-drawing characters
-2. Create a feature branch (from tasks.json `metadata.branchName`)
-3. Pick the highest priority story where `status: "pending"` and not blocked
-4. Set story status to `"in-progress"`
-5. Implement that single story
-6. Run quality checks (typecheck, tests)
-7. Commit if checks pass with message: `feat: [Story ID] - [Story Title]`
-8. Update story status to `"done"`
-9. Append learnings to `progress.txt`
-10. Repeat until all stories done or max iterations reached
+1. Display visual progress with Unicode box-drawing characters (█ ░ ├─ └─)
+2. Create a feature branch (from `.taskmaster/tasks/tasks.json` `metadata.branchName`)
+3. Pick the highest priority task where `status: "pending"` and not blocked by `blockedBy` dependencies
+4. Set task status to `"in-progress"`
+5. Implement that single task following acceptance criteria
+6. Run quality checks (typecheck, lint, tests)
+7. Commit if checks pass with message: `feat: [Task ID] - [Task Title]`
+8. Update task status to `"done"`
+9. Append learnings and context to `progress.txt`
+10. Repeat until all tasks done, blocked, or max iterations reached
+11. Emit `<promise>COMPLETE</promise>` when finished
+
+### 4. Monitor and Manage
+
+While Ralph runs, monitor progress:
+
+```bash
+# Real-time status
+just ralph-status
+
+# View progress log
+tail -f progress.txt
+
+# Check specific task
+taskmaster task get task-003
+
+# List what's left
+just ralph-tasks-pending
+```
+
+### 5. Complete and Review
+
+When Ralph finishes:
+
+```bash
+# Review final state
+just ralph-status
+just ralph-all          # Run all quality checks
+
+# Push and create PR
+git push origin ralph/feature-name
+gh pr create --title "Add user authentication" --body "Closes #123"
+```
+
+## Complete Example
+
+```bash
+# 1. Start your agent and generate tasks
+amp
+> Use the prd skill to create tasks for a user dashboard with stats and charts
+> [Answer clarifying questions: 1A, 2C, 3B]
+
+# 2. Verify tasks were created
+taskmaster task list
+taskmaster status
+
+# 3. Create feature branch
+git checkout -b ralph/user-dashboard
+
+# 4. Run Ralph
+just ralph-claude 10
+
+# 5. Monitor in another terminal
+just ralph-status
+
+# 6. When complete, review and push
+just ralph-all
+git push origin ralph/user-dashboard
+gh pr create
+```
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `ralph/` | Python implementation of Ralph (recommended) |
-| `ralph/README.md` | Detailed Python documentation |
-| `ralph.sh` | Bash wrapper (delegates to Python version) |
-| `prompt.md` | Prompt template for Amp |
-| `CLAUDE.md` | Prompt template for Claude Code, Codex, and OpenCode |
-| `tasks.json` | User stories with status tracking (pending/in-progress/done) |
-| `prd.json.example` | Legacy PRD format (see migration guide below) |
-| `progress.txt` | Append-only learnings for future iterations |
-| `justfile` | Just commands for Ralph (ralph, ralph-test, ralph-check, etc.) |
-| `skills/prd/` | Skill for generating PRDs (works with Amp and Claude Code) |
-| `skills/ralph/` | Skill for converting PRDs to TaskMaster JSON (works with Amp and Claude Code) |
-| `.claude-plugin/` | Plugin manifest for Claude Code marketplace discovery |
+| `ralph/` | Python implementation of Ralph with TaskMaster integration |
+| `ralph/README.md` | Detailed technical documentation |
+| `OPERATIONS.md` | Operational guide (CLI usage, configuration, MCP server) |
+| `CLAUDE.md` | Agent instructions for Claude Code, Codex, and OpenCode |
+| `.taskmaster/tasks/tasks.json` | TaskMaster format tasks with status, priorities, dependencies |
+| `progress.txt` | Append-only learnings and context for future iterations |
+| `justfile` | Task runner commands (ralph-claude, ralph-status, ralph-tasks, etc.) |
+| `skills/prd/` | Skill for generating TaskMaster tasks.json directly |
+| `skills/ralph/` | Skill for converting markdown PRDs to TaskMaster format |
+| `ralph.sh` | Bash wrapper with preflight checks (delegates to Python) |
 | `flowchart/` | Interactive visualization of how Ralph works |
+| `schemas/taskmaster-schema.json` | JSON schema for TaskMaster format validation |
 
 ## Flowchart
 
@@ -207,7 +314,8 @@ npm run dev
 Each iteration spawns a **new AI instance** (Amp, Claude Code, Codex, or OpenCode) with clean context. The only memory between iterations is:
 - Git history (commits from previous iterations)
 - `progress.txt` (learnings and context)
-- `tasks.json` (which stories are done, in-progress, or pending)
+- `.taskmaster/tasks/tasks.json` (which tasks are done, in-progress, or pending)
+- `CLAUDE.md` / `AGENTS.md` files (discovered patterns and conventions)
 
 ### Small Tasks
 
